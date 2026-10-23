@@ -38,20 +38,35 @@ export function StepReview({
   const isMainnet = cluster === "mainnet";
   const { settings } = usePlatformSettings();
 
-  // Calculate All-Inclusive Flat Fees dynamically
-  let allInclusiveTotal = 0;
+  const networkRentSol = 0.009; // Exact Solana on-chain rent for Mint + ATA + Metaplex metadata
+  const isAbsorbed = settings.absorbNetworkRent ?? true;
+
+  // Calculate platform fees based on enabled security features
+  let serviceFeeTotal = 0;
   if (isMainnet) {
-    allInclusiveTotal += settings.mainnetBaseFeeSol;
-    if (data.revokeFreeze) allInclusiveTotal += settings.revokeFreezeFeeSol;
-    if (data.revokeMint) allInclusiveTotal += settings.revokeMintFeeSol;
-    if (data.revokeUpdate) allInclusiveTotal += settings.revokeUpdateFeeSol;
+    serviceFeeTotal += settings.mainnetBaseFeeSol;
+    if (data.revokeFreeze) serviceFeeTotal += settings.revokeFreezeFeeSol;
+    if (data.revokeMint) serviceFeeTotal += settings.revokeMintFeeSol;
+    if (data.revokeUpdate) serviceFeeTotal += settings.revokeUpdateFeeSol;
   }
 
-  const networkRentSol = 0.009; // Exact Solana on-chain rent for Mint + ATA + Metaplex metadata
+  // Strategy A (All-Inclusive): Total wallet prompt is exact flat fee, platform absorbs rent
+  // Strategy B (Rent On Top): Total wallet prompt is service fee + Solana network rent
+  const totalWalletOutflow = isMainnet
+    ? isAbsorbed
+      ? serviceFeeTotal
+      : serviceFeeTotal + networkRentSol
+    : 0;
+
   const platformNetFee = isMainnet
-    ? Math.max(0, allInclusiveTotal - networkRentSol).toFixed(3)
-    : "0.000";
-  const displayTotal = isMainnet ? allInclusiveTotal.toFixed(3) : "Free (Devnet)";
+    ? isAbsorbed
+      ? Math.max(0, serviceFeeTotal - networkRentSol)
+      : serviceFeeTotal
+    : 0;
+
+  const displayTotal = isMainnet
+    ? `${totalWalletOutflow.toFixed(3)} SOL`
+    : "Free (Devnet)";
 
   return (
     <div className="space-y-6">
@@ -130,69 +145,139 @@ export function StepReview({
         </div>
       </div>
 
-      {/* All-Inclusive Transparent Cost Breakdown */}
+      {/* Transparent Cost Breakdown */}
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2 text-xs">
         <div className="flex items-center justify-between font-semibold text-foreground">
           <div className="flex items-center gap-2">
             <span>Total Wallet Outflow</span>
-            <Badge variant="success" className="text-[10px] py-0 px-1.5 font-bold">
-              All-Inclusive Guarantee
-            </Badge>
+            {isMainnet && (
+              <Badge
+                variant={isAbsorbed ? "success" : "info"}
+                className="text-[10px] py-0 px-1.5 font-bold"
+              >
+                {isAbsorbed ? "All-Inclusive Guarantee" : "Transparent Pass-Through"}
+              </Badge>
+            )}
           </div>
           <span className="font-mono text-amber-400 text-sm font-bold">
-            {displayTotal} {isMainnet && "SOL"}
+            {displayTotal}
           </span>
         </div>
 
         <div className="space-y-1.5 pt-2 text-[11px] text-muted-foreground border-t border-border/40">
-          <div className="flex justify-between">
-            <span className="flex items-center gap-1">
-              <span>Solana State Rent (Mint + ATA + Metadata)</span>
-              <span className="text-[10px] text-emerald-400 font-medium">(On-chain deposit)</span>
-            </span>
-            <span className="font-mono text-foreground">~{networkRentSol.toFixed(3)} SOL</span>
-          </div>
-          {isMainnet && (
+          {isMainnet ? (
             <>
               <div className="flex justify-between">
-                <span>Platform Creation & Decentralized Hosting (Net)</span>
-                <span className="font-mono text-foreground">{platformNetFee} SOL</span>
+                <span>Base Platform Creation Fee</span>
+                <span className="font-mono text-foreground">
+                  {settings.mainnetBaseFeeSol.toFixed(3)} SOL
+                </span>
               </div>
               {data.revokeFreeze && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
-                  <span>↳ Revoke Freeze Authority Instruction</span>
-                  <span className="font-mono text-foreground">+{settings.revokeFreezeFeeSol.toFixed(3)} SOL</span>
+                  <span>↳ Revoke Freeze Authority</span>
+                  <span className="font-mono text-foreground">
+                    +{settings.revokeFreezeFeeSol.toFixed(3)} SOL
+                  </span>
                 </div>
               )}
               {data.revokeMint && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
-                  <span>↳ Revoke Mint Authority (Capped Supply)</span>
-                  <span className="font-mono text-foreground">+{settings.revokeMintFeeSol.toFixed(3)} SOL</span>
+                  <span>↳ Revoke Mint Authority (Fixed Supply)</span>
+                  <span className="font-mono text-foreground">
+                    +{settings.revokeMintFeeSol.toFixed(3)} SOL
+                  </span>
                 </div>
               )}
               {data.revokeUpdate && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
                   <span>↳ Revoke Update (Immutable Metadata)</span>
-                  <span className="font-mono text-foreground">+{settings.revokeUpdateFeeSol.toFixed(3)} SOL</span>
+                  <span className="font-mono text-foreground">
+                    +{settings.revokeUpdateFeeSol.toFixed(3)} SOL
+                  </span>
+                </div>
+              )}
+
+              {isAbsorbed ? (
+                <>
+                  <div className="flex justify-between pt-1 border-t border-border/30">
+                    <span className="flex items-center gap-1">
+                      <span>Solana State Rent (Mint + ATA + Metadata)</span>
+                      <span className="text-[10px] text-emerald-400 font-medium">
+                        (Absorbed by platform)
+                      </span>
+                    </span>
+                    <span className="font-mono text-emerald-400">
+                      -~{networkRentSol.toFixed(3)} SOL
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground/90 pl-2 text-[10px]">
+                    <span>↳ Net Platform Payout</span>
+                    <span className="font-mono text-foreground">
+                      {platformNetFee.toFixed(3)} SOL
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between pt-1 border-t border-border/30">
+                  <span className="flex items-center gap-1">
+                    <span>Solana State Rent (Mint + ATA + Metadata)</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      (Mandatory network rent)
+                    </span>
+                  </span>
+                  <span className="font-mono text-foreground">
+                    +~{networkRentSol.toFixed(3)} SOL
+                  </span>
                 </div>
               )}
             </>
+          ) : (
+            <div className="flex justify-between">
+              <span className="flex items-center gap-1">
+                <span>Solana State Rent (Mint + ATA + Metadata)</span>
+                <span className="text-[10px] text-emerald-400 font-medium">
+                  (On-chain refundable deposit)
+                </span>
+              </span>
+              <span className="font-mono text-foreground">~{networkRentSol.toFixed(3)} SOL</span>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] text-emerald-300 flex items-center gap-2.5">
-        <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+      <div
+        className={`rounded-lg border p-3 text-[11px] flex items-start gap-2.5 ${
+          !isMainnet || isAbsorbed
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+            : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+        }`}
+      >
+        <ShieldCheck
+          className={`h-4 w-4 shrink-0 mt-0.5 ${
+            !isMainnet || isAbsorbed ? "text-emerald-400" : "text-blue-400"
+          }`}
+        />
         <span>
-          <strong>100% Trust Guarantee:</strong>{" "}
           {isMainnet ? (
-            <>
-              Network rent is absorbed from our platform fee. Your Phantom wallet will prompt for{" "}
-              <strong>exactly {displayTotal} SOL</strong> — zero hidden surprise fees.
-            </>
+            isAbsorbed ? (
+              <>
+                <strong>100% Trust Guarantee:</strong> Network rent is absorbed from our platform
+                fee. Your Phantom wallet will prompt for <strong>exactly {displayTotal}</strong> —
+                zero hidden surprise fees.
+              </>
+            ) : (
+              <>
+                <strong>Transparent Pricing Guarantee:</strong> You pay the direct platform fee (
+                {serviceFeeTotal.toFixed(3)} SOL) plus standard Solana account rent (~
+                {networkRentSol.toFixed(3)} SOL). Phantom will prompt for{" "}
+                <strong>~{displayTotal}</strong>.
+              </>
+            )
           ) : (
             <>
-              On Devnet, platform creation and authority tools are 100% free of charge. Only standard Solana testnet rent applies.
+              <strong>Devnet Sandbox:</strong> Platform creation and authority management tools are
+              100% free of charge. Only standard Solana testnet rent applies.
             </>
           )}
         </span>

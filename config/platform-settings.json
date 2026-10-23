@@ -1,0 +1,23 @@
+{
+  "mainnetBaseFeeSol": 0.15,
+  "devnetBaseFeeSol": 0.12,
+  "revokeFreezeFeeSol": 0.1,
+  "revokeMintFeeSol": 0.1,
+  "revokeUpdateFeeSol": 0.1,
+  "absorbNetworkRent": true,
+  "treasuryWalletAddress": "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+  "promoDiscountPercent": 0,
+  "promoBannerActive": false,
+  "promoBannerText": "⚡ Launch Week Special: 20% Off All Authority Revocations!",
+  "referralProgramActive": false,
+  "referralFeeSharePercent": 20,
+  "platformTitle": "Solana Token Studio",
+  "platformTagline": "SPL & Token-2022 Launchpad",
+  "supportTelegram": "https://t.me/solanatokenstudio",
+  "supportTwitter": "https://x.com/solanatokenstudio",
+  "supportDiscord": "https://discord.gg/solana",
+  "maintenanceMode": false,
+  "mainnetRpcUrl": "https://api.mainnet-beta.solana.com",
+  "devnetRpcUrl": "https://api.devnet.solana.com",
+  "irysNetwork": "devnet"
+}

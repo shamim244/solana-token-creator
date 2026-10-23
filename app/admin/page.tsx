@@ -601,21 +601,130 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+                  {/* Pricing Strategy Selector (All-Inclusive vs Add Rent On Top) */}
+                  <div className="pt-4 border-t border-border/60 space-y-3">
                     <div>
-                      <span className="text-xs font-semibold text-foreground">
-                        All-Inclusive Rent Absorption
-                      </span>
+                      <h3 className="text-xs font-bold text-foreground">Pricing & Solana Rent Strategy</h3>
                       <p className="text-[11px] text-muted-foreground">
-                        Absorb ~0.009 SOL network rent into fee so Phantom shows exact flat number
+                        Choose how the mandatory ~0.009 SOL Solana account rent is billed to creators.
                       </p>
                     </div>
-                    <Switch
-                      checked={settings.absorbNetworkRent}
-                      onCheckedChange={(checked) =>
-                        setSettings({ ...settings, absorbNetworkRent: checked })
-                      }
-                    />
+
+                    <div className="grid gap-3">
+                      {/* Strategy A: All-Inclusive Flat Rate */}
+                      <button
+                        type="button"
+                        onClick={() => setSettings({ ...settings, absorbNetworkRent: true })}
+                        className={`text-left w-full cursor-pointer rounded-xl border p-4 transition-all relative ${
+                          settings.absorbNetworkRent
+                            ? "border-emerald-500/50 bg-emerald-500/10 shadow-sm"
+                            : "border-border/70 bg-background/50 hover:border-border hover:bg-background/80"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                Strategy A: All-Inclusive Flat Fee
+                              </span>
+                              <Badge variant="success" className="text-[10px] py-0 px-1.5 font-bold">
+                                Recommended for Trust
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Phantom prompts for the <strong>exact advertised flat fee</strong> (e.g. {settings.mainnetBaseFeeSol.toFixed(3)} SOL). The platform absorbs the ~0.009 SOL rent from the fee so creators experience zero hidden decimal surprises.
+                            </p>
+                          </div>
+                          <div
+                            className={`h-4 w-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                              settings.absorbNetworkRent
+                                ? "border-emerald-400 bg-emerald-500"
+                                : "border-border"
+                            }`}
+                          >
+                            {settings.absorbNetworkRent && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-slate-950" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Math Breakdown Pill */}
+                        <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-2 text-[10px] font-mono">
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">User Pays:</span>
+                            <span className="font-bold text-foreground">{settings.mainnetBaseFeeSol.toFixed(3)} SOL</span>
+                          </div>
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">Your Net Profit:</span>
+                            <span className="font-bold text-emerald-400">
+                              {Math.max(0, settings.mainnetBaseFeeSol - 0.009).toFixed(3)} SOL
+                            </span>
+                          </div>
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">Solana Rent:</span>
+                            <span className="text-muted-foreground">~0.009 SOL</span>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Strategy B: Add Rent On Top */}
+                      <button
+                        type="button"
+                        onClick={() => setSettings({ ...settings, absorbNetworkRent: false })}
+                        className={`text-left w-full cursor-pointer rounded-xl border p-4 transition-all relative ${
+                          !settings.absorbNetworkRent
+                            ? "border-amber-500/50 bg-amber-500/10 shadow-sm"
+                            : "border-border/70 bg-background/50 hover:border-border hover:bg-background/80"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                Strategy B: Add Network Rent On Top
+                              </span>
+                              <Badge variant="warning" className="text-[10px] py-0 px-1.5 font-bold">
+                                Maximum Margin
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Creators pay your full fee plus the mandatory ~0.009 SOL Solana account rent separately. Phantom wallet prompts for ~{(settings.mainnetBaseFeeSol + 0.009).toFixed(3)} SOL.
+                            </p>
+                          </div>
+                          <div
+                            className={`h-4 w-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                              !settings.absorbNetworkRent
+                                ? "border-amber-400 bg-amber-500"
+                                : "border-border"
+                            }`}
+                          >
+                            {!settings.absorbNetworkRent && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-slate-950" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Math Breakdown Pill */}
+                        <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-2 text-[10px] font-mono">
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">User Pays:</span>
+                            <span className="font-bold text-foreground">
+                              {(settings.mainnetBaseFeeSol + 0.009).toFixed(3)} SOL
+                            </span>
+                          </div>
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">Your Net Profit:</span>
+                            <span className="font-bold text-amber-400">
+                              {settings.mainnetBaseFeeSol.toFixed(3)} SOL
+                            </span>
+                          </div>
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">Solana Rent:</span>
+                            <span className="text-muted-foreground">+0.009 SOL</span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -648,19 +757,28 @@ export default function AdminPage() {
                     </div>
                     <div className="flex justify-between font-bold text-foreground pt-2 border-t border-border/60">
                       <span>Total Phantom Prompt:</span>
-                      <span className="font-mono text-amber-400 text-sm">
+                      <span className="font-mono text-amber-400 text-sm font-bold">
                         {(
                           settings.mainnetBaseFeeSol +
                           settings.revokeFreezeFeeSol +
-                          settings.revokeMintFeeSol
+                          settings.revokeMintFeeSol +
+                          (!settings.absorbNetworkRent ? 0.009 : 0)
                         ).toFixed(3)}{" "}
                         SOL
                       </span>
                     </div>
                   </div>
-                  <div className="mt-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-[11px] text-emerald-400 flex items-center gap-2">
+                  <div className={`mt-4 rounded-lg border p-2.5 text-[11px] flex items-center gap-2 ${
+                    settings.absorbNetworkRent
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                      : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                  }`}>
                     <ShieldCheck className="h-4 w-4 shrink-0" />
-                    <span>User Phantom wallet deduction will match this exact number.</span>
+                    <span>
+                      {settings.absorbNetworkRent
+                        ? "All-Inclusive Mode: Phantom prompt matches exact advertised flat price."
+                        : "Rent-On-Top Mode: Phantom prompt includes 0.009 SOL network rent added to total."}
+                    </span>
                   </div>
                 </div>
               </div>
