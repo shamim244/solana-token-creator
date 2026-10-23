@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       settings: {
+        // Fees
         mainnetBaseFeeSol: settings.mainnetBaseFeeSol,
         devnetBaseFeeSol: settings.devnetBaseFeeSol,
         revokeFreezeFeeSol: settings.revokeFreezeFeeSol,
@@ -16,6 +17,19 @@ export async function GET() {
         revokeUpdateFeeSol: settings.revokeUpdateFeeSol,
         absorbNetworkRent: settings.absorbNetworkRent,
         treasuryWalletAddress: settings.treasuryWalletAddress,
+
+        // Marketing & Branding
+        promoDiscountPercent: settings.promoDiscountPercent,
+        promoBannerActive: settings.promoBannerActive,
+        promoBannerText: settings.promoBannerText,
+        referralProgramActive: settings.referralProgramActive,
+        referralFeeSharePercent: settings.referralFeeSharePercent,
+        platformTitle: settings.platformTitle,
+        platformTagline: settings.platformTagline,
+        supportTelegram: settings.supportTelegram,
+        supportTwitter: settings.supportTwitter,
+        supportDiscord: settings.supportDiscord,
+        maintenanceMode: settings.maintenanceMode,
       },
     });
   } catch (err: unknown) {

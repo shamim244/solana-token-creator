@@ -1,16 +1,9 @@
 "use client";
 
 import useSWR from "swr";
+import type { PlatformSettings } from "../platform-settings";
 
-export interface PublicPlatformSettings {
-  mainnetBaseFeeSol: number;
-  devnetBaseFeeSol: number;
-  revokeFreezeFeeSol: number;
-  revokeMintFeeSol: number;
-  revokeUpdateFeeSol: number;
-  absorbNetworkRent: boolean;
-  treasuryWalletAddress: string;
-}
+export type PublicPlatformSettings = Omit<PlatformSettings, "mainnetRpcUrl" | "devnetRpcUrl" | "irysNetwork">;
 
 const DEFAULT_PUBLIC_SETTINGS: PublicPlatformSettings = {
   mainnetBaseFeeSol: 0.15,
@@ -20,6 +13,17 @@ const DEFAULT_PUBLIC_SETTINGS: PublicPlatformSettings = {
   revokeUpdateFeeSol: 0.1,
   absorbNetworkRent: true,
   treasuryWalletAddress: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+  promoDiscountPercent: 0,
+  promoBannerActive: false,
+  promoBannerText: "⚡ Launch Week Special: 20% Off All Authority Revocations!",
+  referralProgramActive: false,
+  referralFeeSharePercent: 20,
+  platformTitle: "Solana Token Studio",
+  platformTagline: "SPL & Token-2022 Launchpad",
+  supportTelegram: "https://t.me/solanatokenstudio",
+  supportTwitter: "https://x.com/solanatokenstudio",
+  supportDiscord: "https://discord.gg/solana",
+  maintenanceMode: false,
 };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
