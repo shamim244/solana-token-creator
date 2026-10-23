@@ -60,6 +60,12 @@ export interface CreateTokenParams {
   revokeFreeze: boolean;
   revokeMint: boolean;
   revokeUpdate: boolean;
+  treasuryWallet?: string;
+  baseFeeSol?: number;
+  revokeFreezeFeeSol?: number;
+  revokeMintFeeSol?: number;
+  revokeUpdateFeeSol?: number;
+  absorbNetworkRent?: boolean;
 }
 
 export interface CreateTokenResult {
@@ -240,12 +246,19 @@ export async function createAndDeployToken(
     );
   }
 
-  // Instruction H: Platform Service Fee (All-Inclusive Model: absorbs network rent so Phantom shows exact flat total)
+  // Instruction H: Platform Service Fee (All-Inclusive Model with Dynamic Configuration)
   if (cluster === "mainnet") {
-    let allInclusiveTotalSol = 0.15; // Base All-Inclusive flat fee
-    if (params.revokeFreeze) allInclusiveTotalSol += 0.1;
-    if (params.revokeMint) allInclusiveTotalSol += 0.1;
-    if (params.revokeUpdate) allInclusiveTotalSol += 0.1;
+    const baseFee = params.baseFeeSol ?? 0.15;
+    const freezeFee = params.revokeFreezeFeeSol ?? 0.1;
+    const mintFee = params.revokeMintFeeSol ?? 0.1;
+    const updateFee = params.revokeUpdateFeeSol ?? 0.1;
+    const shouldAbsorb = params.absorbNetworkRent ?? true;
+    const destinationTreasury = address(params.treasuryWallet || PLATFORM_TREASURY);
+
+    let allInclusiveTotalSol = baseFee;
+    if (params.revokeFreeze) allInclusiveTotalSol += freezeFee;
+    if (params.revokeMint) allInclusiveTotalSol += mintFee;
+    if (params.revokeUpdate) allInclusiveTotalSol += updateFee;
 
     const allInclusiveLamports = BigInt(Math.round(allInclusiveTotalSol * 1e9));
 
@@ -257,17 +270,18 @@ export async function createAndDeployToken(
     const metadataRentLamports = isLocalnet ? 0n : 5616720n;
     const totalNetworkRentLamports = mintRent + ataRentLamports + metadataRentLamports;
 
-    // Platform absorbs network rent so user's wallet balance change equals exactly allInclusiveTotalSol!
-    const platformTransferLamports =
-      allInclusiveLamports > totalNetworkRentLamports
-        ? allInclusiveLamports - totalNetworkRentLamports
-        : 0n;
+    // Absorb network rent if configured, otherwise full transfer
+    const platformTransferLamports = shouldAbsorb
+      ? (allInclusiveLamports > totalNetworkRentLamports
+          ? allInclusiveLamports - totalNetworkRentLamports
+          : 0n)
+      : allInclusiveLamports;
 
     if (platformTransferLamports > 0n) {
       instructions.push(
         getTransferSolInstruction({
           source: payer,
-          destination: PLATFORM_TREASURY,
+          destination: destinationTreasury,
           amount: lamports(platformTransferLamports),
         })
       );

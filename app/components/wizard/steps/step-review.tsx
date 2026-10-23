@@ -3,6 +3,7 @@
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { ArrowLeft, Rocket, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { usePlatformSettings } from "../../../lib/hooks/use-platform-settings";
 
 interface StepReviewProps {
   data: {
@@ -35,14 +36,15 @@ export function StepReview({
   onBack,
 }: StepReviewProps) {
   const isMainnet = cluster === "mainnet";
+  const { settings } = usePlatformSettings();
 
-  // Calculate All-Inclusive Flat Fees (Model 1 & Model 2 Hybrid)
+  // Calculate All-Inclusive Flat Fees dynamically
   let allInclusiveTotal = 0;
   if (isMainnet) {
-    allInclusiveTotal += 0.15; // Base All-Inclusive fee
-    if (data.revokeFreeze) allInclusiveTotal += 0.1;
-    if (data.revokeMint) allInclusiveTotal += 0.1;
-    if (data.revokeUpdate) allInclusiveTotal += 0.1;
+    allInclusiveTotal += settings.mainnetBaseFeeSol;
+    if (data.revokeFreeze) allInclusiveTotal += settings.revokeFreezeFeeSol;
+    if (data.revokeMint) allInclusiveTotal += settings.revokeMintFeeSol;
+    if (data.revokeUpdate) allInclusiveTotal += settings.revokeUpdateFeeSol;
   }
 
   const networkRentSol = 0.009; // Exact Solana on-chain rent for Mint + ATA + Metaplex metadata
@@ -159,19 +161,19 @@ export function StepReview({
               {data.revokeFreeze && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
                   <span>↳ Revoke Freeze Authority Instruction</span>
-                  <span className="font-mono text-foreground">+0.100 SOL</span>
+                  <span className="font-mono text-foreground">+{settings.revokeFreezeFeeSol.toFixed(3)} SOL</span>
                 </div>
               )}
               {data.revokeMint && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
                   <span>↳ Revoke Mint Authority (Capped Supply)</span>
-                  <span className="font-mono text-foreground">+0.100 SOL</span>
+                  <span className="font-mono text-foreground">+{settings.revokeMintFeeSol.toFixed(3)} SOL</span>
                 </div>
               )}
               {data.revokeUpdate && (
                 <div className="flex justify-between text-muted-foreground/80 pl-2">
                   <span>↳ Revoke Update (Immutable Metadata)</span>
-                  <span className="font-mono text-foreground">+0.100 SOL</span>
+                  <span className="font-mono text-foreground">+{settings.revokeUpdateFeeSol.toFixed(3)} SOL</span>
                 </div>
               )}
             </>

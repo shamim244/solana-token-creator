@@ -12,6 +12,7 @@ import { StepSuccess } from "./steps/step-success";
 import { TokenPreviewCard } from "../preview/token-preview-card";
 import { createAndDeployToken } from "../../lib/solana-token-creator";
 import { compressTokenImage } from "../../lib/image-compressor";
+import { usePlatformSettings } from "../../lib/hooks/use-platform-settings";
 import { toast } from "sonner";
 import { Check, ChevronRight } from "lucide-react";
 
@@ -62,6 +63,7 @@ export function TokenWizard() {
   const client = useAppClient();
   const connected = useConnectedWallet(client);
   const { cluster, getExplorerUrl } = useCluster();
+  const { settings } = usePlatformSettings();
 
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<TokenWizardState>(INITIAL_STATE);
@@ -144,6 +146,12 @@ export function TokenWizard() {
         {
           ...formData,
           metadataUri: finalMetadataUri,
+          treasuryWallet: settings.treasuryWalletAddress,
+          baseFeeSol: settings.mainnetBaseFeeSol,
+          revokeFreezeFeeSol: settings.revokeFreezeFeeSol,
+          revokeMintFeeSol: settings.revokeMintFeeSol,
+          revokeUpdateFeeSol: settings.revokeUpdateFeeSol,
+          absorbNetworkRent: settings.absorbNetworkRent,
         },
         cluster
       );
