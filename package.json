@@ -2,7 +2,7 @@
   "name": "Solana-Token-Creation",
   "scripts": {
     "build": "next build",
-    "ci": "npm run build && npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "ci": "bun run build && bun run typecheck && bun run lint && bun run format:check && bun run test",
     "dev": "next dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,6 +26,10 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@irys/upload": "^0.0.15",
+    "@irys/upload-solana": "^0.1.8",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.6.0",
     "@solana-program/memo": "^0.12.0",
     "@solana-program/system": "^0.13.0",
     "@solana-program/token": "^0.15.0",
@@ -33,12 +37,15 @@
     "@solana/kit-plugin-rpc": "^0.15.0",
     "@solana/kit-plugin-wallet": "^0.14.0",
     "@solana/react": "^7.0.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.61.0",
     "next": "16.3.4",
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sonner": "^2.0.7",
     "swr": "^2.2.0",
+    "tailwind-merge": "^3.7.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
