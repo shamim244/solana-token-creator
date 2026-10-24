@@ -262,8 +262,10 @@ export async function createAndDeployToken(
   }
 
   // Instruction H: Platform Service Fee (All-Inclusive Model with Dynamic Configuration)
-  if (cluster === "mainnet") {
-    const baseFee = params.baseFeeSol ?? 0.15;
+  // Devnet & Mainnet fees are dynamically configured via the Admin Panel
+  if (cluster === "mainnet" || cluster === "devnet") {
+    const defaultBase = cluster === "mainnet" ? 0.15 : 0.0;
+    const baseFee = params.baseFeeSol ?? defaultBase;
     const freezeFee = params.revokeFreezeFeeSol ?? 0.1;
     const mintFee = params.revokeMintFeeSol ?? 0.1;
     const updateFee = params.revokeUpdateFeeSol ?? 0.1;

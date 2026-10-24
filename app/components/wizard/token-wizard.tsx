@@ -169,7 +169,10 @@ export function TokenWizard() {
           ...formData,
           metadataUri: finalMetadataUri,
           treasuryWallet: settings.treasuryWalletAddress,
-          baseFeeSol: settings.mainnetBaseFeeSol,
+          baseFeeSol:
+            cluster === "mainnet"
+              ? settings.mainnetBaseFeeSol
+              : settings.devnetBaseFeeSol,
           revokeFreezeFeeSol: settings.revokeFreezeFeeSol,
           revokeMintFeeSol: settings.revokeMintFeeSol,
           revokeUpdateFeeSol: settings.revokeUpdateFeeSol,

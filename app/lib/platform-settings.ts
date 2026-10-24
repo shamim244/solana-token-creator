@@ -34,15 +34,15 @@ export interface PlatformSettings {
 
 export const DEFAULT_SETTINGS: PlatformSettings = {
   // Fees
-  mainnetBaseFeeSol: 0.15,
-  devnetBaseFeeSol: 0,
+  mainnetBaseFeeSol: 0.3,
+  devnetBaseFeeSol: 0.3,
   revokeFreezeFeeSol: 0.1,
   revokeMintFeeSol: 0.1,
   revokeUpdateFeeSol: 0.1,
   absorbNetworkRent: true,
   treasuryWalletAddress:
     process.env.PLATFORM_TREASURY_WALLET ||
-    "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+    "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
 
   // Marketing & Growth
   promoDiscountPercent: 0,

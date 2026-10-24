@@ -1,0 +1,5 @@
+# Ignore local Turbopack development cache from being uploaded to Cloudflare Workers
+cache/**
+dev/**
+*.sst
+*.meta

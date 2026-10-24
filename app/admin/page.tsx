@@ -50,13 +50,13 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
 
   const [settings, setSettings] = useState<PlatformSettings>({
-    mainnetBaseFeeSol: 0.15,
-    devnetBaseFeeSol: 0,
+    mainnetBaseFeeSol: 0.3,
+    devnetBaseFeeSol: 0.3,
     revokeFreezeFeeSol: 0.1,
     revokeMintFeeSol: 0.1,
     revokeUpdateFeeSol: 0.1,
     absorbNetworkRent: true,
-    treasuryWalletAddress: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+    treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
     promoDiscountPercent: 0,
     promoBannerActive: false,
     promoBannerText:
@@ -596,7 +596,7 @@ export default function AdminPage() {
                         }
                       />
                       <span className="text-[10px] text-muted-foreground">
-                        0 for free testnet sandbox
+                        Collected directly to treasury wallet on Devnet
                       </span>
                     </div>
                   </div>

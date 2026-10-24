@@ -14,7 +14,7 @@ export interface Env {
   DEVNET_RPC_URL?: string;
   PINATA_JWT?: string;
   METADATA_KV?: {
-    get(key: string, type?: "text" | "json" | "arrayBuffer"): Promise<any>;
+    get(key: string, type?: "text" | "json" | "arrayBuffer"): Promise<unknown>;
     put(
       key: string,
       value: string | ArrayBuffer | ArrayBufferView,
@@ -49,13 +49,13 @@ interface StoredMetadataItem {
 const edgeMetadataCache = new Map<string, StoredMetadataItem>();
 
 let inMemoryPlatformSettings = {
-  mainnetBaseFeeSol: 0.15,
-  devnetBaseFeeSol: 0.0,
+  mainnetBaseFeeSol: 0.3,
+  devnetBaseFeeSol: 0.3,
   revokeFreezeFeeSol: 0.1,
   revokeMintFeeSol: 0.1,
   revokeUpdateFeeSol: 0.1,
   absorbNetworkRent: true,
-  treasuryWalletAddress: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+  treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
   promoDiscountPercent: 0,
   promoBannerActive: false,
   promoBannerText: "⚡ Launch Week Special: 20% Off All Authority Revocations!",
@@ -244,7 +244,7 @@ const worker = {
       if (!metadataJson && env.METADATA_KV) {
         try {
           const stored = await env.METADATA_KV.get(`meta:${id}`, "text");
-          if (stored) metadataJson = JSON.parse(stored);
+          if (typeof stored === "string") metadataJson = JSON.parse(stored);
         } catch (kvErr) {
           console.warn("KV metadata read error:", kvErr);
         }
@@ -284,9 +284,11 @@ const worker = {
         try {
           const kvBuf = await env.METADATA_KV.get(`img:${id}`, "arrayBuffer");
           const kvMime = await env.METADATA_KV.get(`img_mime:${id}`, "text");
-          if (kvBuf) {
+          if (kvBuf instanceof ArrayBuffer) {
             imageBytes = new Uint8Array(kvBuf);
-            if (kvMime) contentType = kvMime;
+          }
+          if (typeof kvMime === "string") {
+            contentType = kvMime;
           }
         } catch (kvErr) {
           console.warn("KV image read error:", kvErr);

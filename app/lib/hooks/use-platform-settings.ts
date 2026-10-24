@@ -9,13 +9,13 @@ export type PublicPlatformSettings = Omit<
 >;
 
 const DEFAULT_PUBLIC_SETTINGS: PublicPlatformSettings = {
-  mainnetBaseFeeSol: 0.15,
-  devnetBaseFeeSol: 0,
+  mainnetBaseFeeSol: 0.3,
+  devnetBaseFeeSol: 0.3,
   revokeFreezeFeeSol: 0.1,
   revokeMintFeeSol: 0.1,
   revokeUpdateFeeSol: 0.1,
   absorbNetworkRent: true,
-  treasuryWalletAddress: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
+  treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
   promoDiscountPercent: 0,
   promoBannerActive: false,
   promoBannerText: "⚡ Launch Week Special: 20% Off All Authority Revocations!",
