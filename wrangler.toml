@@ -1,0 +1,14 @@
+# Cloudflare Pages & Workers Configuration for Solana Token Creator
+name = "solana-token-creator"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"
+
+[vars]
+NEXT_PUBLIC_DEFAULT_CLUSTER = "devnet"
+IRYS_NETWORK = "devnet"
+
+# Production Environment Variables to configure in Cloudflare Dashboard:
+# - ADMIN_PASSWORD (e.g. your secure admin secret)
+# - PLATFORM_TREASURY_WALLET (your real cold Solana wallet address)
+# - MAINNET_RPC_URL (dedicated RPC from Helius or QuickNode)

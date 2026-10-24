@@ -2,6 +2,7 @@
   "name": "Solana-Token-Creation",
   "scripts": {
     "build": "next build",
+    "build:static": "EXPORT_STATIC=true next build",
     "ci": "bun run build && bun run typecheck && bun run lint && bun run format:check && bun run test",
     "dev": "next dev",
     "format": "prettier --write .",

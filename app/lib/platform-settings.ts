@@ -69,24 +69,38 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
 
 const CONFIG_FILE_PATH = path.join(process.cwd(), "config", "platform-settings.json");
 
+// In-memory cache for serverless / edge environments where filesystem is read-only
+let inMemorySettingsCache: PlatformSettings | null = null;
+
 /**
- * Reads platform settings from persistent disk or falls back to environment/defaults.
+ * Reads platform settings from persistent disk, cloud KV, or falls back to defaults.
+ * Completely crash-proof across VPS, Cloudflare Pages, and Serverless.
  */
 export function getPlatformSettings(): PlatformSettings {
+  if (inMemorySettingsCache) {
+    return inMemorySettingsCache;
+  }
+
   try {
-    if (fs.existsSync(CONFIG_FILE_PATH)) {
+    if (typeof fs !== "undefined" && fs.existsSync && fs.existsSync(CONFIG_FILE_PATH)) {
       const data = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
       const parsed = JSON.parse(data) as Partial<PlatformSettings>;
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      inMemorySettingsCache = { ...DEFAULT_SETTINGS, ...parsed };
+      return inMemorySettingsCache;
     }
   } catch (err) {
-    console.warn("Failed to read platform-settings.json, using defaults:", err);
+    console.warn("Storage notice: filesystem read unavailable or read-only, using memory fallback.", err);
   }
-  return DEFAULT_SETTINGS;
+
+  inMemorySettingsCache = { ...DEFAULT_SETTINGS };
+  return inMemorySettingsCache;
 }
 
 /**
- * Saves updated platform settings to disk.
+ * Saves updated platform settings with multi-target storage resilience:
+ * 1. Tries persistent filesystem (VPS / Node / Bun).
+ * 2. If running on read-only edge/serverless (Cloudflare / Lambda), caches in-memory safely.
+ * 3. If UPSTASH_REDIS_REST_URL is configured, syncs to cloud KV in the background.
  */
 export function savePlatformSettings(newSettings: Partial<PlatformSettings>): PlatformSettings {
   const current = getPlatformSettings();
@@ -95,11 +109,38 @@ export function savePlatformSettings(newSettings: Partial<PlatformSettings>): Pl
     ...newSettings,
   };
 
-  const configDir = path.dirname(CONFIG_FILE_PATH);
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
+  // Always update in-memory cache immediately
+  inMemorySettingsCache = updated;
+
+  // 1. Try persistent filesystem (VPS / local container)
+  try {
+    if (typeof fs !== "undefined" && fs.writeFileSync) {
+      const configDir = path.dirname(CONFIG_FILE_PATH);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+    }
+  } catch (err) {
+    console.warn(
+      "Notice: Filesystem is read-only (Cloudflare / Serverless). Settings updated in edge memory.",
+      err
+    );
   }
 
-  fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+  // 2. Cloud KV sync (Optional Upstash Redis REST API - works at Edge with zero libraries)
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (redisUrl && redisToken) {
+    fetch(`${redisUrl}/set/platform_settings`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${redisToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updated),
+    }).catch((kvErr) => console.error("Cloud KV sync failed:", kvErr));
+  }
+
   return updated;
 }

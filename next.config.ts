@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
+const isStaticExport = process.env.EXPORT_STATIC === "true";
+
 const nextConfig: NextConfig = {
+  ...(isStaticExport ? { output: "export" } : {}),
   serverExternalPackages: ["ws"],
   turbopack: {
     resolveAlias: {

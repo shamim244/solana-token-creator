@@ -36,6 +36,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cloudflare
+.wrangler/
+.wrangler
+.dev.vars
+
+# solana keypairs
+*.keypair.json
+id.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

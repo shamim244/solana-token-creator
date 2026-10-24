@@ -1,0 +1,14 @@
+services:
+  solana-token-creator:
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile
+    container_name: solana-token-creator
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../config:/app/config
+    environment:
+      - NODE_ENV=production
+      - PORT=3000

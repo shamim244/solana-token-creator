@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Route API requests to PHP bridge
+  RewriteRule ^api/settings/?$ api/settings.php [L,QSA]
+  RewriteRule ^api/admin/settings/?$ api/settings.php [L,QSA]
+
+  # Direct file requests
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Next.js static client routing fallback
+  RewriteRule ^index\.html$ - [L]
+  RewriteRule . /index.html [L]
+</IfModule>
