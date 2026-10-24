@@ -3,6 +3,7 @@ import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./components/providers";
 import { AppHeader } from "./components/app-header";
+import { AppFooter } from "./components/app-footer";
 import { GridBackground } from "./components/grid-background";
 
 const inter = Inter({
@@ -17,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solana Kit Starter",
+  title: "Solana Token Studio | Non-Custodial SPL & Token-2022 Launchpad",
   description:
-    "Wallet connection and on-chain actions with @solana/kit, the kit plugin client, and @solana/react",
+    "Deploy Solana SPL tokens, revoke authorities, update on-chain metadata, and burn supply with single-block atomic execution.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
@@ -38,9 +39,12 @@ export default function RootLayout({
         <Providers>
           <div className="relative min-h-screen bg-background text-foreground">
             <GridBackground />
-            <div className="relative z-10">
-              <AppHeader />
-              {children}
+            <div className="relative z-10 flex min-h-screen flex-col justify-between">
+              <div>
+                <AppHeader />
+                {children}
+              </div>
+              <AppFooter />
             </div>
           </div>
         </Providers>
