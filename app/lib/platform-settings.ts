@@ -8,6 +8,9 @@ export interface PlatformSettings {
   revokeFreezeFeeSol: number;
   revokeMintFeeSol: number;
   revokeUpdateFeeSol: number;
+  revokeStandaloneFeeSol: number;
+  updateMetadataFeeSol: number;
+  burnTokenFeeSol: number;
   absorbNetworkRent: boolean;
   treasuryWalletAddress: string;
 
@@ -39,6 +42,9 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   revokeFreezeFeeSol: 0.1,
   revokeMintFeeSol: 0.1,
   revokeUpdateFeeSol: 0.1,
+  revokeStandaloneFeeSol: 0.05,
+  updateMetadataFeeSol: 0.05,
+  burnTokenFeeSol: 0.0,
   absorbNetworkRent: true,
   treasuryWalletAddress:
     process.env.PLATFORM_TREASURY_WALLET ||

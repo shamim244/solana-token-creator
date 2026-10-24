@@ -55,6 +55,9 @@ export default function AdminPage() {
     revokeFreezeFeeSol: 0.1,
     revokeMintFeeSol: 0.1,
     revokeUpdateFeeSol: 0.1,
+    revokeStandaloneFeeSol: 0.05,
+    updateMetadataFeeSol: 0.05,
+    burnTokenFeeSol: 0.0,
     absorbNetworkRent: true,
     treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
     promoDiscountPercent: 0,
@@ -658,6 +661,75 @@ export default function AdminPage() {
                               ...settings,
                               revokeUpdateFeeSol:
                                 parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Post-Launch Token Utilities Suite Fees */}
+                  <div className="pt-2 border-t border-border/60 space-y-3">
+                    <h3 className="text-xs font-bold text-foreground">
+                      Post-Launch Utility Suite Platform Fees (SOL)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Fees collected when creators use standalone utilities on
+                      existing tokens.
+                    </p>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">
+                          Standalone Revoke Fee
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={settings.revokeStandaloneFeeSol ?? 0.05}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              revokeStandaloneFeeSol:
+                                parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">
+                          Metadata Update Fee
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={settings.updateMetadataFeeSol ?? 0.05}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              updateMetadataFeeSol:
+                                parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">
+                          Token Burn Fee
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={settings.burnTokenFeeSol ?? 0.0}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              burnTokenFeeSol: parseFloat(e.target.value) || 0,
                             })
                           }
                           className="text-xs font-mono"
