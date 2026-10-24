@@ -1,4 +1,4 @@
-// Cloudflare Worker Edge Router for Next.js Assets & API
+// Cloudflare Worker Edge Router for Clean Next.js URLs & Edge API
 export interface Fetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
@@ -14,38 +14,50 @@ const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // 1. Root route -> Serve main page HTML
+    // 1. Clean URL Enforcer: Redirect legacy /server/app URLs back to clean root "/"
+    if (url.pathname === "/server/app" || url.pathname.startsWith("/server/app/")) {
+      const cleanPath = url.pathname.replace(/^\/server\/app/, "") || "/";
+      return Response.redirect(new URL(cleanPath, request.url), 301);
+    }
+
+    // 2. Root route "/" -> Serve main page HTML directly with status 200 (Clean URL)
     if (url.pathname === "/" || url.pathname === "") {
       const pageRes = await env.ASSETS.fetch(
-        new Request(new URL("/server/app/index.html", request.url), request)
+        new Request(new URL("/server/app/", request.url)),
+        { redirect: "follow" }
       );
-      if (pageRes.status === 200) {
-        return new Response(pageRes.body, {
-          headers: { ...Object.fromEntries(pageRes.headers.entries()), "content-type": "text/html; charset=utf-8" },
-        });
-      }
+      return new Response(pageRes.body, {
+        status: 200,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=0, must-revalidate",
+        },
+      });
     }
 
-    // 2. Admin route -> Serve admin panel HTML
+    // 3. Admin route "/admin" -> Serve admin panel HTML cleanly at "/admin"
     if (url.pathname === "/admin" || url.pathname === "/admin/") {
       const pageRes = await env.ASSETS.fetch(
-        new Request(new URL("/server/app/admin.html", request.url), request)
+        new Request(new URL("/server/app/admin.html", request.url)),
+        { redirect: "follow" }
       );
-      if (pageRes.status === 200) {
-        return new Response(pageRes.body, {
-          headers: { ...Object.fromEntries(pageRes.headers.entries()), "content-type": "text/html; charset=utf-8" },
-        });
-      }
+      return new Response(pageRes.body, {
+        status: 200,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "public, max-age=0, must-revalidate",
+        },
+      });
     }
 
-    // 3. Static chunks rewrite: Next.js requests "/_next/static/*" -> map to "/static/*" in .next
+    // 4. Static chunks rewrite: Next.js requests "/_next/static/*" -> map to "/static/*" in .next
     if (url.pathname.startsWith("/_next/static/")) {
       const assetPath = url.pathname.replace("/_next/static/", "/static/");
       const assetUrl = new URL(assetPath, request.url);
       return env.ASSETS.fetch(new Request(assetUrl, request));
     }
 
-    // 4. Public Settings API Route
+    // 5. Public Settings API Route
     if (url.pathname === "/api/settings") {
       return Response.json({
         success: true,
@@ -74,16 +86,23 @@ const worker = {
       });
     }
 
-    // 5. Default asset serving
+    // 6. Default asset serving
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse.status !== 404) {
       return assetResponse;
     }
 
-    // 5. SPA Fallback for client-side navigation
-    return env.ASSETS.fetch(
-      new Request(new URL("/server/app/index.html", request.url), request)
+    // 7. SPA Fallback for client-side navigation
+    const fallbackRes = await env.ASSETS.fetch(
+      new Request(new URL("/server/app/", request.url)),
+      { redirect: "follow" }
     );
+    return new Response(fallbackRes.body, {
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+      },
+    });
   },
 };
 
