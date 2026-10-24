@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "../../ui/button";
-import { CheckCircle2, Copy, Check, ExternalLink, Sparkles, PlusCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  Check,
+  ExternalLink,
+  Sparkles,
+  PlusCircle,
+} from "lucide-react";
 import { ellipsify } from "../../../lib/explorer";
 import { toast } from "sonner";
 
@@ -71,20 +78,27 @@ export function StepSuccess({
           ${tokenData.symbol} Deployed Successfully!
         </h2>
         <p className="text-xs text-muted-foreground">
-          {tokenData.name} ({Number(tokenData.supply).toLocaleString()} tokens) has been minted and delivered directly to your wallet.
+          {tokenData.name} ({Number(tokenData.supply).toLocaleString()} tokens)
+          has been minted and delivered directly to your wallet.
         </p>
       </div>
 
       {/* Mint Address Box */}
       <div className="rounded-xl border border-border/80 bg-background/90 p-4 text-left space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-muted-foreground">Token Mint Address (CA)</span>
+          <span className="text-xs font-semibold text-muted-foreground">
+            Token Mint Address (CA)
+          </span>
           <button
             type="button"
             onClick={handleCopyMint}
             className="flex cursor-pointer items-center gap-1 text-xs font-medium text-amber-400 hover:underline"
           >
-            {copiedMint ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copiedMint ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
             {copiedMint ? "Copied" : "Copy"}
           </button>
         </div>
@@ -101,7 +115,11 @@ export function StepSuccess({
               className="flex items-center gap-1 font-mono text-muted-foreground hover:text-foreground cursor-pointer"
             >
               {ellipsify(txSignature, 8)}
-              {copiedTx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              {copiedTx ? (
+                <Check className="h-3 w-3 text-emerald-400" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
             </button>
           </div>
         )}

@@ -37,7 +37,9 @@ export default function Home() {
         </h1>
 
         <p className="text-sm sm:text-base leading-relaxed text-muted-foreground max-w-2xl mx-auto">
-          Deploy SPL tokens with full Metaplex metadata, instant investor trust authority revocations, and automatic ATA creation. 100% client-side signed via Wallet Standard.
+          Deploy SPL tokens with full Metaplex metadata, instant investor trust
+          authority revocations, and automatic ATA creation. 100% client-side
+          signed via Wallet Standard.
         </p>
 
         {/* Mode Switcher */}

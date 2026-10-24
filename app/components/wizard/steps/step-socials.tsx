@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { Globe, Send, MessageCircle, ArrowLeft, ArrowRight, Plus, X } from "lucide-react";
+import {
+  Globe,
+  Send,
+  MessageCircle,
+  ArrowLeft,
+  ArrowRight,
+  Plus,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface StepSocialsProps {
@@ -19,9 +27,23 @@ interface StepSocialsProps {
   onBack: () => void;
 }
 
-const PRESET_TAGS = ["Meme", "AI", "DeFi", "Gaming", "Solana", "NFT", "Utility", "Community"];
+const PRESET_TAGS = [
+  "Meme",
+  "AI",
+  "DeFi",
+  "Gaming",
+  "Solana",
+  "NFT",
+  "Utility",
+  "Community",
+];
 
-export function StepSocials({ data, onChange, onNext, onBack }: StepSocialsProps) {
+export function StepSocials({
+  data,
+  onChange,
+  onNext,
+  onBack,
+}: StepSocialsProps) {
   const [customTag, setCustomTag] = useState("");
 
   const handleAddTag = (tagToAdd: string) => {
@@ -46,9 +68,12 @@ export function StepSocials({ data, onChange, onNext, onBack }: StepSocialsProps
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-foreground">Social Links & Community Tags</h2>
+        <h2 className="text-lg font-bold text-foreground">
+          Social Links & Community Tags
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Include your project channels. DEX platforms like DexScreener & Birdeye index these directly from on-chain metadata.
+          Include your project channels. DEX platforms like DexScreener &
+          Birdeye index these directly from on-chain metadata.
         </p>
       </div>
 
@@ -123,7 +148,9 @@ export function StepSocials({ data, onChange, onNext, onBack }: StepSocialsProps
               <button
                 key={tag}
                 type="button"
-                onClick={() => (isSelected ? handleRemoveTag(tag) : handleAddTag(tag))}
+                onClick={() =>
+                  isSelected ? handleRemoveTag(tag) : handleAddTag(tag)
+                }
                 className={`cursor-pointer rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${
                   isSelected
                     ? "border-amber-500 bg-amber-500/15 text-amber-400 shadow-xs"
@@ -189,7 +216,11 @@ export function StepSocials({ data, onChange, onNext, onBack }: StepSocialsProps
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button onClick={onNext} variant="amber" className="px-6 font-semibold gap-1.5">
+        <Button
+          onClick={onNext}
+          variant="amber"
+          className="px-6 font-semibold gap-1.5"
+        >
           Continue to Authorities
           <ArrowRight className="h-4 w-4" />
         </Button>

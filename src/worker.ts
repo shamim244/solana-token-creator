@@ -1,4 +1,9 @@
 // Cloudflare Worker Edge Router for Clean Next.js URLs, Admin Auth, and Edge API
+import {
+  MetadataStorageService,
+  type MetadataPayload,
+} from "../app/lib/metadata-storage-service";
+
 export interface Fetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
@@ -9,6 +14,10 @@ export interface Env {
   PLATFORM_TREASURY_WALLET?: string;
   ADMIN_PASSWORD?: string;
   IRYS_NETWORK?: string;
+  MAINNET_RPC_URL?: string;
+  DEVNET_RPC_URL?: string;
+  IRYS_WALLET_PRIVATE_KEY?: string;
+  PINATA_JWT?: string;
 }
 
 let inMemoryPlatformSettings = {
@@ -35,12 +44,29 @@ let inMemoryPlatformSettings = {
   irysNetwork: "devnet" as const,
 };
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    // 0. CORS preflight handler for API endpoints
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
+
     // 1. Clean URL Enforcer: Redirect legacy /server/app URLs back to clean root "/"
-    if (url.pathname === "/server/app" || url.pathname.startsWith("/server/app/")) {
+    if (
+      url.pathname === "/server/app" ||
+      url.pathname.startsWith("/server/app/")
+    ) {
       const cleanPath = url.pathname.replace(/^\/server\/app/, "") || "/";
       return Response.redirect(new URL(cleanPath, request.url), 301);
     }
@@ -91,68 +117,147 @@ const worker = {
       if (token !== expectedPassword) {
         return Response.json(
           { success: false, error: "Unauthorized: Invalid admin passcode" },
-          { status: 401 }
+          { status: 401, headers: corsHeaders }
         );
       }
 
       if (request.method === "POST") {
         try {
-          const body = (await request.json()) as Partial<typeof inMemoryPlatformSettings>;
+          const body = (await request.json()) as Partial<
+            typeof inMemoryPlatformSettings
+          >;
           inMemoryPlatformSettings = {
             ...inMemoryPlatformSettings,
             ...body,
           };
-          return Response.json({ success: true, settings: inMemoryPlatformSettings });
+          return Response.json(
+            { success: true, settings: inMemoryPlatformSettings },
+            { status: 200, headers: corsHeaders }
+          );
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : "Failed to update settings";
-          return Response.json({ success: false, error: msg }, { status: 400 });
+          const msg =
+            err instanceof Error ? err.message : "Failed to update settings";
+          return Response.json(
+            { success: false, error: msg },
+            { status: 400, headers: corsHeaders }
+          );
         }
       }
 
-      return Response.json({
-        success: true,
-        settings: {
-          ...inMemoryPlatformSettings,
-          treasuryWalletAddress:
-            env.PLATFORM_TREASURY_WALLET || inMemoryPlatformSettings.treasuryWalletAddress,
+      return Response.json(
+        {
+          success: true,
+          settings: {
+            ...inMemoryPlatformSettings,
+            treasuryWalletAddress:
+              env.PLATFORM_TREASURY_WALLET ||
+              inMemoryPlatformSettings.treasuryWalletAddress,
+          },
         },
-      });
+        { status: 200, headers: corsHeaders }
+      );
     }
 
     // 6. Diagnostics status route
     if (url.pathname === "/api/upload-metadata/status") {
-      return Response.json({
-        success: true,
-        timestamp: new Date().toISOString(),
-        diagnostics: {
-          irysFreeTierAvailable: true,
-          irysFundedTierAvailable: false,
-          pinataAvailable: false,
-          localHostedAvailable: true,
-          activeNetwork: env.IRYS_NETWORK || "devnet",
+      return Response.json(
+        {
+          success: true,
+          timestamp: new Date().toISOString(),
+          diagnostics: {
+            irysFreeTierAvailable: true,
+            irysFundedTierAvailable: Boolean(env.IRYS_WALLET_PRIVATE_KEY),
+            pinataAvailable: Boolean(env.PINATA_JWT),
+            localHostedAvailable: false, // Edge runtime uses decentralized storage
+            activeNetwork: env.IRYS_NETWORK || "devnet",
+          },
         },
-      });
+        { status: 200, headers: corsHeaders }
+      );
     }
 
     // 7. Public Settings API Route
     if (url.pathname === "/api/settings") {
-      return Response.json({
-        success: true,
-        settings: {
-          ...inMemoryPlatformSettings,
-          treasuryWalletAddress:
-            env.PLATFORM_TREASURY_WALLET || inMemoryPlatformSettings.treasuryWalletAddress,
+      return Response.json(
+        {
+          success: true,
+          settings: {
+            ...inMemoryPlatformSettings,
+            treasuryWalletAddress:
+              env.PLATFORM_TREASURY_WALLET ||
+              inMemoryPlatformSettings.treasuryWalletAddress,
+          },
         },
-      });
+        { status: 200, headers: corsHeaders }
+      );
     }
 
-    // 8. Default asset serving
+    // 8. Upload Metadata API Route (POST) - Decentralized Irys & IPFS Storage
+    if (url.pathname === "/api/upload-metadata") {
+      if (request.method !== "POST") {
+        return Response.json(
+          { success: false, error: "Method not allowed. Use POST." },
+          { status: 405, headers: corsHeaders }
+        );
+      }
+
+      try {
+        const body = (await request.json()) as MetadataPayload;
+
+        if (!body.name?.trim() || !body.symbol?.trim()) {
+          return Response.json(
+            { success: false, error: "Name and symbol are required fields" },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        const rpcUrl =
+          body.cluster === "mainnet"
+            ? env.MAINNET_RPC_URL || inMemoryPlatformSettings.mainnetRpcUrl
+            : env.DEVNET_RPC_URL || inMemoryPlatformSettings.devnetRpcUrl;
+
+        const result = await MetadataStorageService.upload(body, {
+          rpcUrl,
+          privateKey: env.IRYS_WALLET_PRIVATE_KEY,
+          pinataJwt: env.PINATA_JWT,
+        });
+
+        if (!result.success) {
+          return Response.json(
+            { success: false, error: result.error || "Metadata upload failed" },
+            { status: 500, headers: corsHeaders }
+          );
+        }
+
+        return Response.json(result, { status: 200, headers: corsHeaders });
+      } catch (err: unknown) {
+        console.error("Worker /api/upload-metadata error:", err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to upload metadata to decentralized storage";
+        return Response.json(
+          { success: false, error: errorMessage },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+    }
+
+    // 9. API Catch-All: ALWAYS return clean JSON 404 for missing /api routes, NEVER fallback to HTML
+    if (url.pathname.startsWith("/api/")) {
+      return Response.json(
+        { success: false, error: `API endpoint not found: ${url.pathname}` },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    // 10. Default static asset serving from .next build directory
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse.status !== 404) {
       return assetResponse;
     }
 
-    // 9. SPA Fallback for client-side navigation
+    // 11. SPA Fallback for client-side HTML routes
     const fallbackRes = await env.ASSETS.fetch(
       new Request(new URL("/server/app/", request.url)),
       { redirect: "follow" }

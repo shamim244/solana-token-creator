@@ -79,7 +79,9 @@ export async function compressTokenImage(
             }
           }
 
-          const finalExt = bestDataUrl.startsWith("data:image/webp") ? "webp" : "jpg";
+          const finalExt = bestDataUrl.startsWith("data:image/webp")
+            ? "webp"
+            : "jpg";
           const baseName = file.name.replace(/\.[^/.]+$/, "");
 
           resolve({

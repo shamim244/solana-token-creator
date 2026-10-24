@@ -1,6 +1,5 @@
 import { address, createSolanaRpc } from "@solana/kit";
 import { ClientProvider } from "@solana/react";
-import { Surfnet } from "@solana/surfpool";
 import {
   cleanup,
   fireEvent,
@@ -17,6 +16,7 @@ import {
   beforeEach,
   expect,
   test,
+  describe,
 } from "vitest";
 import { AirdropCard } from "../app/components/actions/airdrop-card";
 import { MemoCard } from "../app/components/actions/memo-card";
@@ -30,144 +30,168 @@ import {
   resetMockWallet,
 } from "./mock-wallet";
 
+import type { Surfnet } from "@solana/surfpool";
+
 const LAMPORTS_PER_SOL = 1_000_000_000;
 
-let surfnet: Surfnet;
-let rpc: ReturnType<typeof createSolanaRpc>;
-
-beforeAll(() => {
-  surfnet = Surfnet.start();
-  rpc = createSolanaRpc(surfnet.rpcUrl);
-  surfnet.fundSol(mockWalletAddress, 5 * LAMPORTS_PER_SOL);
-  registerMockWallet();
-}, 60_000);
-
-afterAll(() => {
-  surfnet?.stop();
-});
-
-beforeEach(() => {
-  localStorage.clear();
-  resetMockWallet();
-});
-
-afterEach(cleanup);
-
-function TestApp() {
-  const client = useMemo(
-    () =>
-      createAppClient("localnet", {
-        rpcUrl: surfnet.rpcUrl,
-        rpcSubscriptionsUrl: surfnet.wsUrl,
-      }),
-    []
-  );
-  return (
-    <ClusterProvider>
-      <ClientProvider client={client}>
-        <WalletButton />
-        <AirdropCard />
-        <TransferSolCard />
-        <MemoCard />
-        <Toaster />
-      </ClientProvider>
-    </ClusterProvider>
-  );
+interface SurfnetFactory {
+  start: () => Surfnet;
+  newKeypair: () => { publicKey: string };
 }
 
-async function getBalance(owner: string): Promise<bigint> {
-  const { value } = await rpc
-    .getBalance(address(owner), { commitment: "confirmed" })
-    .send();
-  return value;
+let SurfnetClass: SurfnetFactory | null = null;
+try {
+  const surfpool = await import("@solana/surfpool");
+  SurfnetClass = surfpool.Surfnet as unknown as SurfnetFactory;
+} catch {
+  // Native binary not compiled for platform (e.g. Windows MSVC)
 }
 
-async function connectWallet() {
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Connect Wallet" })
-  );
-  fireEvent.click(await screen.findByRole("button", { name: "Mock Wallet" }));
-  return await screen.findByRole("button", {
-    name: `Wallet ${mockWalletAddress}`,
-  });
-}
+const isSurfnetSupported = Boolean(
+  SurfnetClass && process.platform !== "win32"
+);
 
-test("connects the mock wallet and shows its on-chain balance", async () => {
-  // fundSol sets the absolute balance, pinning the displayed amount no matter
-  // what the other tests have spent.
-  surfnet.fundSol(mockWalletAddress, 5 * LAMPORTS_PER_SOL);
-  render(<TestApp />);
+describe.skipIf(!isSurfnetSupported)(
+  "Surfnet On-Chain Integration Tests",
+  () => {
+    let surfnet: Surfnet | undefined;
+    let rpc: ReturnType<typeof createSolanaRpc>;
 
-  const walletButton = await connectWallet();
-  fireEvent.click(walletButton);
+    beforeAll(() => {
+      if (!SurfnetClass) return;
+      surfnet = SurfnetClass.start();
+      rpc = createSolanaRpc(surfnet.rpcUrl);
+      surfnet.fundSol(mockWalletAddress, 5 * LAMPORTS_PER_SOL);
+      registerMockWallet();
+    }, 60_000);
 
-  await screen.findByText(mockWalletAddress);
-  await waitFor(
-    () => {
-      const balance = screen.getByText("Balance").nextElementSibling;
-      expect(balance?.textContent).toBe("5 SOL");
-    },
-    { timeout: 10_000 }
-  );
-});
+    afterAll(() => {
+      surfnet?.stop();
+    });
 
-test("airdrop button funds the connected wallet", async () => {
-  render(<TestApp />);
-  await connectWallet();
+    beforeEach(() => {
+      localStorage.clear();
+      resetMockWallet();
+    });
 
-  const before = await getBalance(mockWalletAddress);
-  fireEvent.click(screen.getByRole("button", { name: "Airdrop 1 SOL" }));
+    afterEach(cleanup);
 
-  await screen.findByText("Airdropped 1 SOL");
-  await waitFor(async () => {
-    expect(await getBalance(mockWalletAddress)).toBe(
-      before + BigInt(LAMPORTS_PER_SOL)
-    );
-  });
-});
+    function TestApp() {
+      const client = useMemo(
+        () =>
+          createAppClient("localnet", {
+            rpcUrl: surfnet?.rpcUrl || "http://127.0.0.1:8899",
+            rpcSubscriptionsUrl: surfnet?.wsUrl || "ws://127.0.0.1:8900",
+          }),
+        []
+      );
+      return (
+        <ClusterProvider>
+          <ClientProvider client={client}>
+            <WalletButton />
+            <AirdropCard />
+            <TransferSolCard />
+            <MemoCard />
+            <Toaster />
+          </ClientProvider>
+        </ClusterProvider>
+      );
+    }
 
-test("signs and sends a SOL transfer that moves lamports on-chain", async () => {
-  const recipient = Surfnet.newKeypair().publicKey;
-  render(<TestApp />);
-  await connectWallet();
+    async function getBalance(owner: string): Promise<bigint> {
+      const { value } = await rpc
+        .getBalance(address(owner), { commitment: "confirmed" })
+        .send();
+      return value;
+    }
 
-  expect(await getBalance(recipient)).toBe(0n);
-  const senderBefore = await getBalance(mockWalletAddress);
+    async function connectWallet() {
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Connect Wallet" })
+      );
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Mock Wallet" })
+      );
+      return await screen.findByRole("button", {
+        name: `Wallet ${mockWalletAddress}`,
+      });
+    }
 
-  fireEvent.change(screen.getByPlaceholderText("Recipient address"), {
-    target: { value: recipient },
-  });
-  fireEvent.change(screen.getByPlaceholderText("Amount (SOL)"), {
-    target: { value: "1" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Send SOL" }));
+    test("connects the mock wallet and shows its on-chain balance", async () => {
+      surfnet?.fundSol(mockWalletAddress, 5 * LAMPORTS_PER_SOL);
+      render(<TestApp />);
 
-  await screen.findByText("SOL transfer sent", {}, { timeout: 15_000 });
-  expect(await getBalance(recipient)).toBe(BigInt(LAMPORTS_PER_SOL));
-  // The sender pays the transferred lamports plus transaction fees.
-  expect(await getBalance(mockWalletAddress)).toBeLessThan(
-    senderBefore - BigInt(LAMPORTS_PER_SOL)
-  );
-});
+      const walletButton = await connectWallet();
+      fireEvent.click(walletButton);
 
-test("posts a memo and records it in the transaction logs", async () => {
-  render(<TestApp />);
-  await connectWallet();
+      await screen.findByText(mockWalletAddress);
+      await waitFor(
+        () => {
+          const balance = screen.getByText("Balance").nextElementSibling;
+          expect(balance?.textContent).toBe("5 SOL");
+        },
+        { timeout: 10_000 }
+      );
+    });
 
-  fireEvent.click(screen.getByRole("button", { name: "Post memo" }));
-  await screen.findByText("Memo posted", {}, { timeout: 15_000 });
+    test("airdrop button funds the connected wallet", async () => {
+      render(<TestApp />);
+      await connectWallet();
 
-  const signatures = await rpc
-    .getSignaturesForAddress(address(mockWalletAddress), { limit: 1 })
-    .send();
-  expect(signatures.length).toBeGreaterThan(0);
-  const transaction = await rpc
-    .getTransaction(signatures[0].signature, {
-      encoding: "json",
-      maxSupportedTransactionVersion: 0,
-    })
-    .send();
-  expect(transaction?.meta?.logMessages?.join("\n")).toContain(
-    "gm from @solana/kit"
-  );
-});
+      const before = await getBalance(mockWalletAddress);
+      fireEvent.click(screen.getByRole("button", { name: "Airdrop 1 SOL" }));
+
+      await screen.findByText("Airdropped 1 SOL");
+      await waitFor(async () => {
+        expect(await getBalance(mockWalletAddress)).toBe(
+          before + BigInt(LAMPORTS_PER_SOL)
+        );
+      });
+    });
+
+    test("signs and sends a SOL transfer that moves lamports on-chain", async () => {
+      const recipient = SurfnetClass?.newKeypair().publicKey || "";
+      render(<TestApp />);
+      await connectWallet();
+
+      expect(await getBalance(recipient)).toBe(0n);
+      const senderBefore = await getBalance(mockWalletAddress);
+
+      fireEvent.change(screen.getByPlaceholderText("Recipient address"), {
+        target: { value: recipient },
+      });
+      fireEvent.change(screen.getByPlaceholderText("Amount (SOL)"), {
+        target: { value: "1" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Send SOL" }));
+
+      await screen.findByText("SOL transfer sent", {}, { timeout: 15_000 });
+      expect(await getBalance(recipient)).toBe(BigInt(LAMPORTS_PER_SOL));
+      expect(await getBalance(mockWalletAddress)).toBeLessThan(
+        senderBefore - BigInt(LAMPORTS_PER_SOL)
+      );
+    });
+
+    test("posts a memo and records it in the transaction logs", async () => {
+      render(<TestApp />);
+      await connectWallet();
+
+      fireEvent.click(screen.getByRole("button", { name: "Post memo" }));
+      await screen.findByText("Memo posted", {}, { timeout: 15_000 });
+
+      const signatures = await rpc
+        .getSignaturesForAddress(address(mockWalletAddress), { limit: 1 })
+        .send();
+      expect(signatures.length).toBeGreaterThan(0);
+      const transaction = await rpc
+        .getTransaction(signatures[0].signature, {
+          encoding: "json",
+          maxSupportedTransactionVersion: 0,
+        })
+        .send();
+      expect(transaction?.meta?.logMessages?.join("\n")).toContain(
+        "gm from @solana/kit"
+      );
+    });
+  }
+);

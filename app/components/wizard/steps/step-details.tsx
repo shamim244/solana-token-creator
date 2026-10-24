@@ -4,7 +4,13 @@ import { useState, useRef, type ChangeEvent } from "react";
 import { Input } from "../../ui/input";
 import { Textarea } from "../../ui/textarea";
 import { Button } from "../../ui/button";
-import { Upload, X, Link as LinkIcon, Image as ImageIcon, ArrowRight } from "lucide-react";
+import {
+  Upload,
+  X,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  ArrowRight,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface StepDetailsProps {
@@ -22,7 +28,9 @@ interface StepDetailsProps {
 }
 
 export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
-  const [useUrl, setUseUrl] = useState(Boolean(data.imageUrl && !data.imageFile));
+  const [useUrl, setUseUrl] = useState(
+    Boolean(data.imageUrl && !data.imageFile)
+  );
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,8 +94,12 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
         {/* Token Name */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-            <span>Token Name <span className="text-amber-500">*</span></span>
-            <span className="text-[10px] text-muted-foreground">{data.name.length}/32</span>
+            <span>
+              Token Name <span className="text-amber-500">*</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {data.name.length}/32
+            </span>
           </label>
           <Input
             value={data.name}
@@ -101,8 +113,12 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
         {/* Token Symbol */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-            <span>Symbol / Ticker <span className="text-amber-500">*</span></span>
-            <span className="text-[10px] text-muted-foreground">{data.symbol.length}/10</span>
+            <span>
+              Symbol / Ticker <span className="text-amber-500">*</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {data.symbol.length}/10
+            </span>
           </label>
           <Input
             value={data.symbol}
@@ -116,8 +132,12 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
         {/* Decimals Selector */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-            <span>Decimals <span className="text-amber-500">*</span></span>
-            <span className="text-[10px] text-muted-foreground">Standard: 6 or 9</span>
+            <span>
+              Decimals <span className="text-amber-500">*</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              Standard: 6 or 9
+            </span>
           </label>
           <div className="flex gap-2">
             {[6, 9].map((dec) => (
@@ -168,7 +188,10 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
       {/* Description */}
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-foreground">
-          Description <span className="text-[10px] text-muted-foreground font-normal">(Optional)</span>
+          Description{" "}
+          <span className="text-[10px] text-muted-foreground font-normal">
+            (Optional)
+          </span>
         </label>
         <Textarea
           value={data.description}
@@ -189,7 +212,11 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
             onClick={() => setUseUrl(!useUrl)}
             className="flex cursor-pointer items-center gap-1 text-[11px] font-medium text-amber-400 hover:underline"
           >
-            {useUrl ? <Upload className="h-3 w-3" /> : <LinkIcon className="h-3 w-3" />}
+            {useUrl ? (
+              <Upload className="h-3 w-3" />
+            ) : (
+              <LinkIcon className="h-3 w-3" />
+            )}
             {useUrl ? "Upload File instead" : "Paste Image URL instead"}
           </button>
         </div>
@@ -197,7 +224,9 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
         {useUrl ? (
           <Input
             value={data.imageUrl}
-            onChange={(e) => onChange({ imageUrl: e.target.value, imageFile: null })}
+            onChange={(e) =>
+              onChange({ imageUrl: e.target.value, imageFile: null })
+            }
             placeholder="https://example.com/logo.png"
             className="font-mono text-xs"
           />
@@ -232,8 +261,12 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
                   className="h-16 w-16 rounded-xl border border-border object-cover shadow-sm"
                 />
                 <div className="text-left">
-                  <p className="text-xs font-medium text-foreground">Logo selected</p>
-                  <p className="text-[10px] text-muted-foreground">Click to replace</p>
+                  <p className="text-xs font-medium text-foreground">
+                    Logo selected
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Click to replace
+                  </p>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -250,7 +283,8 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
               <div className="space-y-1">
                 <ImageIcon className="mx-auto h-8 w-8 text-muted" />
                 <p className="text-xs font-medium text-foreground">
-                  Drag and drop your logo, or <span className="text-amber-400">browse</span>
+                  Drag and drop your logo, or{" "}
+                  <span className="text-amber-400">browse</span>
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   PNG, JPG, WebP up to 5MB (1000×1000 recommended)
@@ -262,7 +296,11 @@ export function StepDetails({ data, onChange, onNext }: StepDetailsProps) {
       </div>
 
       <div className="flex justify-end pt-3">
-        <Button onClick={handleContinue} variant="amber" className="px-6 font-semibold">
+        <Button
+          onClick={handleContinue}
+          variant="amber"
+          className="px-6 font-semibold"
+        >
           Continue to Socials
           <ArrowRight className="h-4 w-4" />
         </Button>

@@ -3,7 +3,10 @@
 import useSWR from "swr";
 import type { PlatformSettings } from "../platform-settings";
 
-export type PublicPlatformSettings = Omit<PlatformSettings, "mainnetRpcUrl" | "devnetRpcUrl" | "irysNetwork">;
+export type PublicPlatformSettings = Omit<
+  PlatformSettings,
+  "mainnetRpcUrl" | "devnetRpcUrl" | "irysNetwork"
+>;
 
 const DEFAULT_PUBLIC_SETTINGS: PublicPlatformSettings = {
   mainnetBaseFeeSol: 0.15,

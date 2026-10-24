@@ -59,7 +59,8 @@ export default function AdminPage() {
     treasuryWalletAddress: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
     promoDiscountPercent: 0,
     promoBannerActive: false,
-    promoBannerText: "⚡ Launch Week Special: 20% Off All Authority Revocations!",
+    promoBannerText:
+      "⚡ Launch Week Special: 20% Off All Authority Revocations!",
     referralProgramActive: false,
     referralFeeSharePercent: 20,
     platformTitle: "Solana Token Studio",
@@ -183,14 +184,19 @@ export default function AdminPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-6">
             <Lock className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Enterprise Control Center</h1>
+          <h1 className="text-xl font-bold text-foreground">
+            Enterprise Control Center
+          </h1>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Enter your admin passcode to access the enterprise management grid, monetization fees, and system telemetry.
+            Enter your admin passcode to access the enterprise management grid,
+            monetization fees, and system telemetry.
           </p>
 
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">Admin Passcode</label>
+              <label className="text-xs font-semibold text-foreground">
+                Admin Passcode
+              </label>
               <Input
                 type="password"
                 placeholder="Enter passcode (default: admin123)"
@@ -198,16 +204,26 @@ export default function AdminPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus
               />
-              {authError && <p className="text-[11px] text-destructive">{authError}</p>}
+              {authError && (
+                <p className="text-[11px] text-destructive">{authError}</p>
+              )}
             </div>
 
-            <Button type="submit" disabled={isLoading} variant="amber" className="w-full font-bold">
+            <Button
+              type="submit"
+              disabled={isLoading}
+              variant="amber"
+              className="w-full font-bold"
+            >
               {isLoading ? "Verifying Access..." : "Unlock Enterprise Grid"}
             </Button>
           </form>
 
           <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground inline-flex items-center gap-1">
+            <Link
+              href="/"
+              className="hover:text-foreground inline-flex items-center gap-1"
+            >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Studio
             </Link>
             <span className="text-[10px]">Configured via .env</span>
@@ -376,7 +392,9 @@ export default function AdminPage() {
             <h1 className="text-sm font-bold text-foreground capitalize">
               {activeSection.replace(/_/g, " ")}
             </h1>
-            <span className="text-xs text-muted-foreground">/ Platform Settings</span>
+            <span className="text-xs text-muted-foreground">
+              / Platform Settings
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -404,7 +422,9 @@ export default function AdminPage() {
                     <span>Est. SOL Revenue</span>
                     <Coins className="h-4 w-4 text-amber-400" />
                   </div>
-                  <p className="text-2xl font-bold font-mono text-foreground">12.45 SOL</p>
+                  <p className="text-2xl font-bold font-mono text-foreground">
+                    12.45 SOL
+                  </p>
                   <p className="text-[10px] text-emerald-400 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" /> +18.2% this week
                   </p>
@@ -415,8 +435,12 @@ export default function AdminPage() {
                     <span>Tokens Deployed</span>
                     <Activity className="h-4 w-4 text-emerald-400" />
                   </div>
-                  <p className="text-2xl font-bold font-mono text-foreground">84 Mints</p>
-                  <p className="text-[10px] text-muted-foreground">100% Non-custodial atomic</p>
+                  <p className="text-2xl font-bold font-mono text-foreground">
+                    84 Mints
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    100% Non-custodial atomic
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
@@ -427,7 +451,9 @@ export default function AdminPage() {
                   <p className="text-2xl font-bold font-mono text-foreground">
                     {settings.mainnetBaseFeeSol} SOL
                   </p>
-                  <p className="text-[10px] text-muted-foreground">All-inclusive absorbed rent</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    All-inclusive absorbed rent
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
@@ -435,9 +461,12 @@ export default function AdminPage() {
                     <span>Storage Engine</span>
                     <Radio className="h-4 w-4 text-purple-400" />
                   </div>
-                  <p className="text-lg font-bold text-foreground">4-Tier Resilient</p>
+                  <p className="text-lg font-bold text-foreground">
+                    4-Tier Resilient
+                  </p>
                   <p className="text-[10px] text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Free Arweave Tier Active
+                    <CheckCircle2 className="h-3 w-3" /> Free Arweave Tier
+                    Active
                   </p>
                 </div>
               </div>
@@ -445,22 +474,36 @@ export default function AdminPage() {
               {/* Quick Actions & Treasury Snapshot */}
               <div className="grid md:grid-cols-12 gap-6">
                 <div className="md:col-span-7 rounded-xl border border-border/80 bg-card/60 p-5 space-y-3">
-                  <h3 className="text-xs font-bold text-foreground">Active Treasury Wallet</h3>
+                  <h3 className="text-xs font-bold text-foreground">
+                    Active Treasury Wallet
+                  </h3>
                   <div className="p-3 rounded-lg bg-background/80 border border-border/60 flex items-center justify-between font-mono text-xs">
-                    <span className="truncate">{settings.treasuryWalletAddress}</span>
-                    <Badge variant="warning" className="text-[10px] ml-2 shrink-0">
+                    <span className="truncate">
+                      {settings.treasuryWalletAddress}
+                    </span>
+                    <Badge
+                      variant="warning"
+                      className="text-[10px] ml-2 shrink-0"
+                    >
                       Cold Payout
                     </Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    All mint creation profits, freeze revocations, and mint authorities are deposited atomically here.
+                    All mint creation profits, freeze revocations, and mint
+                    authorities are deposited atomically here.
                   </p>
                 </div>
 
                 <div className="md:col-span-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground">Marketing Status</span>
-                    <Badge variant={settings.promoBannerActive ? "success" : "secondary"}>
+                    <span className="text-xs font-bold text-foreground">
+                      Marketing Status
+                    </span>
+                    <Badge
+                      variant={
+                        settings.promoBannerActive ? "success" : "secondary"
+                      }
+                    >
                       {settings.promoBannerActive ? "Promo Live" : "Standard"}
                     </Badge>
                   </div>
@@ -482,16 +525,22 @@ export default function AdminPage() {
                 <div className="rounded-xl border border-border/80 bg-card/60 p-5 space-y-3">
                   <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                     <Wallet className="h-4 w-4 text-amber-400" />
-                    <h2 className="text-sm font-bold text-foreground">Treasury Payout Address</h2>
+                    <h2 className="text-sm font-bold text-foreground">
+                      Treasury Payout Address
+                    </h2>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-muted-foreground">
-                      Solana Treasury Public Key (Where all fees are deposited directly)
+                      Solana Treasury Public Key (Where all fees are deposited
+                      directly)
                     </label>
                     <Input
                       value={settings.treasuryWalletAddress}
                       onChange={(e) =>
-                        setSettings({ ...settings, treasuryWalletAddress: e.target.value.trim() })
+                        setSettings({
+                          ...settings,
+                          treasuryWalletAddress: e.target.value.trim(),
+                        })
                       }
                       placeholder="Enter base58 Solana address..."
                       className="font-mono text-xs"
@@ -503,7 +552,9 @@ export default function AdminPage() {
                 <div className="rounded-xl border border-border/80 bg-card/60 p-5 space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                     <Coins className="h-4 w-4 text-amber-400" />
-                    <h2 className="text-sm font-bold text-foreground">Token Creation Pricing</h2>
+                    <h2 className="text-sm font-bold text-foreground">
+                      Token Creation Pricing
+                    </h2>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -523,7 +574,9 @@ export default function AdminPage() {
                           })
                         }
                       />
-                      <span className="text-[10px] text-muted-foreground">Industry standard: 0.10 - 0.25 SOL</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Industry standard: 0.10 - 0.25 SOL
+                      </span>
                     </div>
 
                     <div className="space-y-1.5">
@@ -542,16 +595,22 @@ export default function AdminPage() {
                           })
                         }
                       />
-                      <span className="text-[10px] text-muted-foreground">0 for free testnet sandbox</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        0 for free testnet sandbox
+                      </span>
                     </div>
                   </div>
 
                   {/* Addon Fees */}
                   <div className="pt-2 border-t border-border/60 space-y-3">
-                    <h3 className="text-xs font-bold text-foreground">Optional Authority Add-On Fees</h3>
+                    <h3 className="text-xs font-bold text-foreground">
+                      Optional Authority Add-On Fees
+                    </h3>
                     <div className="grid sm:grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Revoke Freeze</label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Revoke Freeze
+                        </label>
                         <Input
                           type="number"
                           step="0.01"
@@ -560,14 +619,17 @@ export default function AdminPage() {
                           onChange={(e) =>
                             setSettings({
                               ...settings,
-                              revokeFreezeFeeSol: parseFloat(e.target.value) || 0,
+                              revokeFreezeFeeSol:
+                                parseFloat(e.target.value) || 0,
                             })
                           }
                           className="text-xs font-mono"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Revoke Mint</label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Revoke Mint
+                        </label>
                         <Input
                           type="number"
                           step="0.01"
@@ -583,7 +645,9 @@ export default function AdminPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[11px] text-muted-foreground">Revoke Update</label>
+                        <label className="text-[11px] text-muted-foreground">
+                          Revoke Update
+                        </label>
                         <Input
                           type="number"
                           step="0.01"
@@ -592,7 +656,8 @@ export default function AdminPage() {
                           onChange={(e) =>
                             setSettings({
                               ...settings,
-                              revokeUpdateFeeSol: parseFloat(e.target.value) || 0,
+                              revokeUpdateFeeSol:
+                                parseFloat(e.target.value) || 0,
                             })
                           }
                           className="text-xs font-mono"
@@ -604,9 +669,12 @@ export default function AdminPage() {
                   {/* Pricing Strategy Selector (All-Inclusive vs Add Rent On Top) */}
                   <div className="pt-4 border-t border-border/60 space-y-3">
                     <div>
-                      <h3 className="text-xs font-bold text-foreground">Pricing & Solana Rent Strategy</h3>
+                      <h3 className="text-xs font-bold text-foreground">
+                        Pricing & Solana Rent Strategy
+                      </h3>
                       <p className="text-[11px] text-muted-foreground">
-                        Choose how the mandatory ~0.009 SOL Solana account rent is billed to creators.
+                        Choose how the mandatory ~0.009 SOL Solana account rent
+                        is billed to creators.
                       </p>
                     </div>
 
@@ -614,7 +682,9 @@ export default function AdminPage() {
                       {/* Strategy A: All-Inclusive Flat Rate */}
                       <button
                         type="button"
-                        onClick={() => setSettings({ ...settings, absorbNetworkRent: true })}
+                        onClick={() =>
+                          setSettings({ ...settings, absorbNetworkRent: true })
+                        }
                         className={`text-left w-full cursor-pointer rounded-xl border p-4 transition-all relative ${
                           settings.absorbNetworkRent
                             ? "border-emerald-500/50 bg-emerald-500/10 shadow-sm"
@@ -627,12 +697,20 @@ export default function AdminPage() {
                               <span className="text-xs font-bold text-foreground">
                                 Strategy A: All-Inclusive Flat Fee
                               </span>
-                              <Badge variant="success" className="text-[10px] py-0 px-1.5 font-bold">
+                              <Badge
+                                variant="success"
+                                className="text-[10px] py-0 px-1.5 font-bold"
+                              >
                                 Recommended for Trust
                               </Badge>
                             </div>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                              Phantom prompts for the <strong>exact advertised flat fee</strong> (e.g. {settings.mainnetBaseFeeSol.toFixed(3)} SOL). The platform absorbs the ~0.009 SOL rent from the fee so creators experience zero hidden decimal surprises.
+                              Phantom prompts for the{" "}
+                              <strong>exact advertised flat fee</strong> (e.g.{" "}
+                              {settings.mainnetBaseFeeSol.toFixed(3)} SOL). The
+                              platform absorbs the ~0.009 SOL rent from the fee
+                              so creators experience zero hidden decimal
+                              surprises.
                             </p>
                           </div>
                           <div
@@ -651,18 +729,32 @@ export default function AdminPage() {
                         {/* Math Breakdown Pill */}
                         <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-2 text-[10px] font-mono">
                           <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">User Pays:</span>
-                            <span className="font-bold text-foreground">{settings.mainnetBaseFeeSol.toFixed(3)} SOL</span>
-                          </div>
-                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">Your Net Profit:</span>
-                            <span className="font-bold text-emerald-400">
-                              {Math.max(0, settings.mainnetBaseFeeSol - 0.009).toFixed(3)} SOL
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              User Pays:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {settings.mainnetBaseFeeSol.toFixed(3)} SOL
                             </span>
                           </div>
                           <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">Solana Rent:</span>
-                            <span className="text-muted-foreground">~0.009 SOL</span>
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              Your Net Profit:
+                            </span>
+                            <span className="font-bold text-emerald-400">
+                              {Math.max(
+                                0,
+                                settings.mainnetBaseFeeSol - 0.009
+                              ).toFixed(3)}{" "}
+                              SOL
+                            </span>
+                          </div>
+                          <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              Solana Rent:
+                            </span>
+                            <span className="text-muted-foreground">
+                              ~0.009 SOL
+                            </span>
                           </div>
                         </div>
                       </button>
@@ -670,7 +762,9 @@ export default function AdminPage() {
                       {/* Strategy B: Add Rent On Top */}
                       <button
                         type="button"
-                        onClick={() => setSettings({ ...settings, absorbNetworkRent: false })}
+                        onClick={() =>
+                          setSettings({ ...settings, absorbNetworkRent: false })
+                        }
                         className={`text-left w-full cursor-pointer rounded-xl border p-4 transition-all relative ${
                           !settings.absorbNetworkRent
                             ? "border-amber-500/50 bg-amber-500/10 shadow-sm"
@@ -683,12 +777,19 @@ export default function AdminPage() {
                               <span className="text-xs font-bold text-foreground">
                                 Strategy B: Add Network Rent On Top
                               </span>
-                              <Badge variant="warning" className="text-[10px] py-0 px-1.5 font-bold">
+                              <Badge
+                                variant="warning"
+                                className="text-[10px] py-0 px-1.5 font-bold"
+                              >
                                 Maximum Margin
                               </Badge>
                             </div>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                              Creators pay your full fee plus the mandatory ~0.009 SOL Solana account rent separately. Phantom wallet prompts for ~{(settings.mainnetBaseFeeSol + 0.009).toFixed(3)} SOL.
+                              Creators pay your full fee plus the mandatory
+                              ~0.009 SOL Solana account rent separately. Phantom
+                              wallet prompts for ~
+                              {(settings.mainnetBaseFeeSol + 0.009).toFixed(3)}{" "}
+                              SOL.
                             </p>
                           </div>
                           <div
@@ -707,20 +808,29 @@ export default function AdminPage() {
                         {/* Math Breakdown Pill */}
                         <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-2 text-[10px] font-mono">
                           <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">User Pays:</span>
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              User Pays:
+                            </span>
                             <span className="font-bold text-foreground">
-                              {(settings.mainnetBaseFeeSol + 0.009).toFixed(3)} SOL
+                              {(settings.mainnetBaseFeeSol + 0.009).toFixed(3)}{" "}
+                              SOL
                             </span>
                           </div>
                           <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">Your Net Profit:</span>
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              Your Net Profit:
+                            </span>
                             <span className="font-bold text-amber-400">
                               {settings.mainnetBaseFeeSol.toFixed(3)} SOL
                             </span>
                           </div>
                           <div className="bg-background/70 rounded-md p-1.5 border border-border/40">
-                            <span className="text-muted-foreground block text-[9px] font-sans">Solana Rent:</span>
-                            <span className="text-muted-foreground">+0.009 SOL</span>
+                            <span className="text-muted-foreground block text-[9px] font-sans">
+                              Solana Rent:
+                            </span>
+                            <span className="text-muted-foreground">
+                              +0.009 SOL
+                            </span>
                           </div>
                         </div>
                       </button>
@@ -733,8 +843,12 @@ export default function AdminPage() {
               <div className="md:col-span-5 space-y-4">
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
                   <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
-                    <span className="text-xs font-bold text-foreground">Creator Pricing Simulation</span>
-                    <Badge variant="warning" className="text-[10px]">Live Sync</Badge>
+                    <span className="text-xs font-bold text-foreground">
+                      Creator Pricing Simulation
+                    </span>
+                    <Badge variant="warning" className="text-[10px]">
+                      Live Sync
+                    </Badge>
                   </div>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
@@ -768,11 +882,13 @@ export default function AdminPage() {
                       </span>
                     </div>
                   </div>
-                  <div className={`mt-4 rounded-lg border p-2.5 text-[11px] flex items-center gap-2 ${
-                    settings.absorbNetworkRent
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                      : "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                  }`}>
+                  <div
+                    className={`mt-4 rounded-lg border p-2.5 text-[11px] flex items-center gap-2 ${
+                      settings.absorbNetworkRent
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                    }`}
+                  >
                     <ShieldCheck className="h-4 w-4 shrink-0" />
                     <span>
                       {settings.absorbNetworkRent
@@ -789,39 +905,60 @@ export default function AdminPage() {
           {activeSection === "infrastructure" && (
             <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-5 max-w-3xl">
               <div>
-                <h2 className="text-sm font-bold text-foreground">RPC & Decentralized Storage Nodes</h2>
+                <h2 className="text-sm font-bold text-foreground">
+                  RPC & Decentralized Storage Nodes
+                </h2>
                 <p className="text-xs text-muted-foreground">
-                  Connect dedicated endpoints (Helius, QuickNode, Triton) to eliminate RPC rate limits.
+                  Connect dedicated endpoints (Helius, QuickNode, Triton) to
+                  eliminate RPC rate limits.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Mainnet RPC URL</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Mainnet RPC URL
+                  </label>
                   <Input
                     value={settings.mainnetRpcUrl}
-                    onChange={(e) => setSettings({ ...settings, mainnetRpcUrl: e.target.value.trim() })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        mainnetRpcUrl: e.target.value.trim(),
+                      })
+                    }
                     placeholder="https://mainnet.helius-rpc.com/?api-key=..."
                     className="font-mono text-xs"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Devnet RPC URL</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Devnet RPC URL
+                  </label>
                   <Input
                     value={settings.devnetRpcUrl}
-                    onChange={(e) => setSettings({ ...settings, devnetRpcUrl: e.target.value.trim() })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        devnetRpcUrl: e.target.value.trim(),
+                      })
+                    }
                     placeholder="https://api.devnet.solana.com"
                     className="font-mono text-xs"
                   />
                 </div>
 
                 <div className="pt-3 border-t border-border/60 space-y-2">
-                  <label className="text-xs font-semibold text-foreground">Irys Storage Target Network</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Irys Storage Target Network
+                  </label>
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={() => setSettings({ ...settings, irysNetwork: "devnet" })}
+                      onClick={() =>
+                        setSettings({ ...settings, irysNetwork: "devnet" })
+                      }
                       className={`px-4 py-2 rounded-lg text-xs font-semibold border ${
                         settings.irysNetwork === "devnet"
                           ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
@@ -832,7 +969,9 @@ export default function AdminPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSettings({ ...settings, irysNetwork: "mainnet" })}
+                      onClick={() =>
+                        setSettings({ ...settings, irysNetwork: "mainnet" })
+                      }
                       className={`px-4 py-2 rounded-lg text-xs font-semibold border ${
                         settings.irysNetwork === "mainnet"
                           ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
@@ -853,14 +992,19 @@ export default function AdminPage() {
               <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-5">
                 <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                   <Flame className="h-4 w-4 text-amber-400" />
-                  <h2 className="text-sm font-bold text-foreground">Promotional Banner & Discounts</h2>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Promotional Banner & Discounts
+                  </h2>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-foreground">Top Announcement Banner</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      Top Announcement Banner
+                    </span>
                     <p className="text-[11px] text-muted-foreground">
-                      Display an eye-catching campaign banner at the top of the creator studio
+                      Display an eye-catching campaign banner at the top of the
+                      creator studio
                     </p>
                   </div>
                   <Switch
@@ -872,10 +1016,17 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Banner Copy / Text</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Banner Copy / Text
+                  </label>
                   <Input
                     value={settings.promoBannerText}
-                    onChange={(e) => setSettings({ ...settings, promoBannerText: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        promoBannerText: e.target.value,
+                      })
+                    }
                     placeholder="e.g. 🚀 Launch Week: 25% Off All Token Deployments!"
                   />
                 </div>
@@ -906,20 +1057,28 @@ export default function AdminPage() {
               <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-4">
                 <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                   <Percent className="h-4 w-4 text-emerald-400" />
-                  <h2 className="text-sm font-bold text-foreground">Affiliate & Referral Engine</h2>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Affiliate & Referral Engine
+                  </h2>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-foreground">Enable Referral Sharing</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      Enable Referral Sharing
+                    </span>
                     <p className="text-[11px] text-muted-foreground">
-                      Reward creators and influencers who refer new token creators to your launchpad
+                      Reward creators and influencers who refer new token
+                      creators to your launchpad
                     </p>
                   </div>
                   <Switch
                     checked={settings.referralProgramActive}
                     onCheckedChange={(checked) =>
-                      setSettings({ ...settings, referralProgramActive: checked })
+                      setSettings({
+                        ...settings,
+                        referralProgramActive: checked,
+                      })
                     }
                   />
                 </div>
@@ -940,7 +1099,9 @@ export default function AdminPage() {
                       })
                     }
                   />
-                  <span className="text-[10px] text-muted-foreground">Percentage of base fee routed to referrer</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Percentage of base fee routed to referrer
+                  </span>
                 </div>
               </div>
             </div>
@@ -950,47 +1111,81 @@ export default function AdminPage() {
           {activeSection === "general" && (
             <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-5 max-w-3xl">
               <div>
-                <h2 className="text-sm font-bold text-foreground">Brand Identity & Social Channels</h2>
+                <h2 className="text-sm font-bold text-foreground">
+                  Brand Identity & Social Channels
+                </h2>
                 <p className="text-xs text-muted-foreground">
-                  Customize the platform title, taglines, and support community links.
+                  Customize the platform title, taglines, and support community
+                  links.
                 </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Platform Brand Title</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Platform Brand Title
+                  </label>
                   <Input
                     value={settings.platformTitle}
-                    onChange={(e) => setSettings({ ...settings, platformTitle: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        platformTitle: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Subtitle / Tagline</label>
+                  <label className="text-xs font-semibold text-foreground">
+                    Subtitle / Tagline
+                  </label>
                   <Input
                     value={settings.platformTagline}
-                    onChange={(e) => setSettings({ ...settings, platformTagline: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        platformTagline: e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
 
               <div className="pt-3 border-t border-border/60 space-y-3">
-                <h3 className="text-xs font-bold text-foreground">Official Community Support Channels</h3>
+                <h3 className="text-xs font-bold text-foreground">
+                  Official Community Support Channels
+                </h3>
                 <div className="space-y-2">
                   <Input
                     value={settings.supportTelegram}
-                    onChange={(e) => setSettings({ ...settings, supportTelegram: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        supportTelegram: e.target.value,
+                      })
+                    }
                     placeholder="Telegram link (https://t.me/...)"
                     className="text-xs"
                   />
                   <Input
                     value={settings.supportTwitter}
-                    onChange={(e) => setSettings({ ...settings, supportTwitter: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        supportTwitter: e.target.value,
+                      })
+                    }
                     placeholder="X / Twitter profile link (https://x.com/...)"
                     className="text-xs"
                   />
                   <Input
                     value={settings.supportDiscord}
-                    onChange={(e) => setSettings({ ...settings, supportDiscord: e.target.value })}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        supportDiscord: e.target.value,
+                      })
+                    }
                     placeholder="Discord invite link"
                     className="text-xs"
                   />
@@ -999,9 +1194,12 @@ export default function AdminPage() {
 
               <div className="pt-3 border-t border-border/60 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-semibold text-destructive">Maintenance Mode</span>
+                  <span className="text-xs font-semibold text-destructive">
+                    Maintenance Mode
+                  </span>
                   <p className="text-[11px] text-muted-foreground">
-                    Temporarily disable new token creation transactions while keeping dashboard active
+                    Temporarily disable new token creation transactions while
+                    keeping dashboard active
                   </p>
                 </div>
                 <Switch
@@ -1019,7 +1217,9 @@ export default function AdminPage() {
             <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <div>
-                  <h2 className="text-sm font-bold text-foreground">Live Deployment Registry</h2>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Live Deployment Registry
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     Historical record of tokens minted through this launchpad.
                   </p>
@@ -1041,12 +1241,20 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-border/40 font-mono text-[11px]">
                     <tr className="hover:bg-secondary/40">
-                      <td className="py-3 px-3 font-bold text-foreground font-sans">Velocity Coin</td>
-                      <td className="py-3 px-3 text-amber-400 font-bold">$VELO</td>
+                      <td className="py-3 px-3 font-bold text-foreground font-sans">
+                        Velocity Coin
+                      </td>
+                      <td className="py-3 px-3 text-amber-400 font-bold">
+                        $VELO
+                      </td>
                       <td className="py-3 px-3 capitalize">Devnet</td>
-                      <td className="py-3 px-3 text-emerald-400">Freeze + Mint Revoked</td>
+                      <td className="py-3 px-3 text-emerald-400">
+                        Freeze + Mint Revoked
+                      </td>
                       <td className="py-3 px-3">
-                        <Badge variant="success" className="text-[10px]">Confirmed</Badge>
+                        <Badge variant="success" className="text-[10px]">
+                          Confirmed
+                        </Badge>
                       </td>
                       <td className="py-3 px-3 text-right">
                         <a
@@ -1060,12 +1268,20 @@ export default function AdminPage() {
                       </td>
                     </tr>
                     <tr className="hover:bg-secondary/40">
-                      <td className="py-3 px-3 font-bold text-foreground font-sans">Trust Coin</td>
-                      <td className="py-3 px-3 text-amber-400 font-bold">$TRUST</td>
+                      <td className="py-3 px-3 font-bold text-foreground font-sans">
+                        Trust Coin
+                      </td>
+                      <td className="py-3 px-3 text-amber-400 font-bold">
+                        $TRUST
+                      </td>
                       <td className="py-3 px-3 capitalize">Mainnet</td>
-                      <td className="py-3 px-3 text-emerald-400">Immutable + Capped</td>
+                      <td className="py-3 px-3 text-emerald-400">
+                        Immutable + Capped
+                      </td>
                       <td className="py-3 px-3">
-                        <Badge variant="success" className="text-[10px]">Confirmed</Badge>
+                        <Badge variant="success" className="text-[10px]">
+                          Confirmed
+                        </Badge>
                       </td>
                       <td className="py-3 px-3 text-right">
                         <a
@@ -1089,16 +1305,20 @@ export default function AdminPage() {
             <div className="rounded-xl border border-border/80 bg-card/60 p-6 space-y-5 max-w-3xl">
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <div>
-                  <h2 className="text-sm font-bold text-foreground">Storage & Cluster Telemetry</h2>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Storage & Cluster Telemetry
+                  </h2>
                   <p className="text-xs text-muted-foreground">
-                    Real-time status of active upload gateways and wallet connections.
+                    Real-time status of active upload gateways and wallet
+                    connections.
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const token = sessionStorage.getItem("admin_auth_token") || "";
+                    const token =
+                      sessionStorage.getItem("admin_auth_token") || "";
                     loadSettings(token);
                     toast.success("Diagnostics refreshed");
                   }}
@@ -1111,13 +1331,18 @@ export default function AdminPage() {
 
               <div className="grid sm:grid-cols-2 gap-4 text-xs">
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3.5 space-y-1">
-                  <span className="text-muted-foreground text-[11px]">Platform Signing Address:</span>
+                  <span className="text-muted-foreground text-[11px]">
+                    Platform Signing Address:
+                  </span>
                   <p className="font-mono text-foreground font-semibold break-all">
-                    {diagnostics?.platformAddress || "Ephemeral (Generated on-demand for free tier)"}
+                    {diagnostics?.platformAddress ||
+                      "Ephemeral (Generated on-demand for free tier)"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3.5 space-y-1">
-                  <span className="text-muted-foreground text-[11px]">Irys Node Balance:</span>
+                  <span className="text-muted-foreground text-[11px]">
+                    Irys Node Balance:
+                  </span>
                   <p className="font-mono text-emerald-400 font-bold text-sm">
                     {diagnostics?.irysBalance || "0.00 SOL (Free Tier Active)"}
                   </p>
@@ -1125,7 +1350,9 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2 pt-2">
-                <h3 className="text-xs font-bold text-foreground">4-Tier Fallback Health</h3>
+                <h3 className="text-xs font-bold text-foreground">
+                  4-Tier Fallback Health
+                </h3>
                 <div className="space-y-1.5">
                   {diagnostics?.tiers &&
                     Object.entries(diagnostics.tiers).map(([tierKey, tier]) => (
@@ -1137,7 +1364,11 @@ export default function AdminPage() {
                           {tierKey.replace(/_/g, " ")}
                         </span>
                         <Badge
-                          variant={tier.status === "active" || tier.status === "ready" ? "success" : "secondary"}
+                          variant={
+                            tier.status === "active" || tier.status === "ready"
+                              ? "success"
+                              : "secondary"
+                          }
                           className="text-[10px]"
                         >
                           {tier.status}

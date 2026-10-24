@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getPlatformSettings, savePlatformSettings, type PlatformSettings } from "../../../lib/platform-settings";
+import {
+  getPlatformSettings,
+  savePlatformSettings,
+  type PlatformSettings,
+} from "../../../lib/platform-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +18,10 @@ function verifyAdmin(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!verifyAdmin(req)) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   const settings = getPlatformSettings();
@@ -23,7 +30,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   if (!verifyAdmin(req)) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   try {
@@ -32,7 +42,10 @@ export async function POST(req: Request) {
     // Basic validation
     if (body.treasuryWalletAddress && body.treasuryWalletAddress.length < 32) {
       return NextResponse.json(
-        { success: false, error: "Invalid Solana treasury wallet address format" },
+        {
+          success: false,
+          error: "Invalid Solana treasury wallet address format",
+        },
         { status: 400 }
       );
     }

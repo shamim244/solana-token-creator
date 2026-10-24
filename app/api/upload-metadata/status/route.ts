@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const configuredKey =
-      process.env.IRYS_WALLET_PRIVATE_KEY?.trim() || process.env.SOLANA_PRIVATE_KEY?.trim();
+      process.env.IRYS_WALLET_PRIVATE_KEY?.trim() ||
+      process.env.SOLANA_PRIVATE_KEY?.trim();
     const isDedicatedWalletConfigured = Boolean(configuredKey);
 
     let address = "Ephemeral (Generated on-demand for free tier)";
@@ -17,7 +18,9 @@ export async function GET() {
     if (configuredKey) {
       try {
         const uploader = await Uploader(Solana)
-          .withRpc(process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com")
+          .withRpc(
+            process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com"
+          )
           .devnet()
           .withWallet(configuredKey);
 
@@ -44,7 +47,8 @@ export async function GET() {
         },
         tier2_irys_funded: {
           status: isDedicatedWalletConfigured ? "ready" : "optional",
-          description: "Used automatically for >100 KiB payloads if dedicated key provided",
+          description:
+            "Used automatically for >100 KiB payloads if dedicated key provided",
         },
         tier3_ipfs_pinata: {
           status: process.env.PINATA_JWT ? "active" : "standby",
@@ -52,7 +56,8 @@ export async function GET() {
         },
         tier4_self_hosted: {
           status: "active",
-          description: "Zero-dependency local/CDN fallback guaranteed 100% uptime",
+          description:
+            "Zero-dependency local/CDN fallback guaranteed 100% uptime",
         },
       },
     });

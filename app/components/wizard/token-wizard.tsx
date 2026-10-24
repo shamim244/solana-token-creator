@@ -48,7 +48,7 @@ const INITIAL_STATE: TokenWizardState = {
   discord: "",
   tags: ["Meme", "Solana"],
   revokeFreeze: true, // Recommended & required for Raydium pools
-  revokeMint: true,   // Recommended for investor trust
+  revokeMint: true, // Recommended for investor trust
   revokeUpdate: false,
 };
 
@@ -89,56 +89,78 @@ export function TokenWizard() {
     try {
       let finalMetadataUri = formData.imageUrl;
 
-      // 1. Upload to Irys (Arweave) if image file or metadata provided
-      if (formData.imageFile || formData.imageUrl) {
-        toast.loading("Compressing & pinning metadata to Arweave (Irys)...", { id: toastId });
+      // 1. Upload decentralized metadata to Irys (Arweave)
+      toast.loading("Compressing & pinning metadata to Arweave (Irys)...", {
+        id: toastId,
+      });
 
-        let compressedBase64: string | undefined = undefined;
-        let filename: string | undefined = undefined;
+      let compressedBase64: string | undefined = undefined;
+      let filename: string | undefined = undefined;
 
-        if (formData.imageFile) {
-          try {
-            const compressed = await compressTokenImage(formData.imageFile);
-            compressedBase64 = compressed.base64;
-            filename = compressed.filename;
-          } catch (compressErr) {
-            console.warn("Client compression fallback:", compressErr);
-          }
-        }
-
-        const uploadRes = await fetch("/api/upload-metadata", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formData.name,
-            symbol: formData.symbol,
-            description: formData.description,
-            imageData: compressedBase64,
-            imageFilename: filename,
-            existingImageUrl: formData.imageUrl.startsWith("blob:") ? "" : formData.imageUrl,
-            website: formData.website,
-            twitter: formData.twitter,
-            telegram: formData.telegram,
-            discord: formData.discord,
-            tags: formData.tags,
-            cluster,
-          }),
-        });
-
-        const uploadData = await uploadRes.json();
-        if (uploadData.success && uploadData.metadataUri) {
-          finalMetadataUri = uploadData.metadataUri;
-        } else {
-          console.warn("Irys upload notice:", uploadData.error);
-          if (cluster === "localnet") {
-            finalMetadataUri = formData.imageUrl;
-          } else {
-            throw new Error(uploadData.error || "Failed to upload metadata to Arweave");
-          }
+      if (formData.imageFile) {
+        try {
+          const compressed = await compressTokenImage(formData.imageFile);
+          compressedBase64 = compressed.base64;
+          filename = compressed.filename;
+        } catch (compressErr) {
+          console.warn("Client compression fallback:", compressErr);
         }
       }
 
-      toast.loading("Composing atomic mint transaction in wallet...", { id: toastId });
+      const uploadRes = await fetch("/api/upload-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          symbol: formData.symbol,
+          description: formData.description,
+          imageData: compressedBase64,
+          imageFilename: filename,
+          existingImageUrl: formData.imageUrl.startsWith("blob:")
+            ? ""
+            : formData.imageUrl,
+          website: formData.website,
+          twitter: formData.twitter,
+          telegram: formData.telegram,
+          discord: formData.discord,
+          tags: formData.tags,
+          cluster,
+        }),
+      });
+
+      let uploadData: {
+        success?: boolean;
+        metadataUri?: string;
+        error?: string;
+      } = {};
+      try {
+        uploadData = await uploadRes.json();
+      } catch {
+        const rawText = await uploadRes.text().catch(() => "");
+        throw new Error(
+          uploadRes.status === 404
+            ? "Metadata API endpoint not reachable on host"
+            : `Storage service response error (${uploadRes.status}): ${rawText.slice(0, 100)}`
+        );
+      }
+
+      if (uploadData.success && uploadData.metadataUri) {
+        finalMetadataUri = uploadData.metadataUri;
+      } else {
+        console.warn("Metadata storage notice:", uploadData.error);
+        if (cluster === "localnet") {
+          finalMetadataUri = formData.imageUrl;
+        } else {
+          throw new Error(
+            uploadData.error ||
+              "Failed to upload metadata to decentralized storage"
+          );
+        }
+      }
+
+      toast.loading("Composing atomic mint transaction in wallet...", {
+        id: toastId,
+      });
 
       const result = await createAndDeployToken(
         client,
@@ -165,7 +187,9 @@ export function TokenWizard() {
     } catch (err: unknown) {
       console.error("Token creation error:", err);
       const errorMsg =
-        err instanceof Error ? err.message : "Failed to deploy token transaction.";
+        err instanceof Error
+          ? err.message
+          : "Failed to deploy token transaction.";
       toast.error(errorMsg, { id: toastId });
     } finally {
       setIsDeploying(false);
@@ -184,7 +208,10 @@ export function TokenWizard() {
       <div className="lg:col-span-7 space-y-6">
         {/* Stepper Header (only visible before success) */}
         {step < 4 && (
-          <nav aria-label="Progress" className="rounded-xl border border-border bg-card/60 p-2 shadow-xs">
+          <nav
+            aria-label="Progress"
+            className="rounded-xl border border-border bg-card/60 p-2 shadow-xs"
+          >
             <ol className="flex items-center justify-between gap-1">
               {STEPS.map((s, idx) => {
                 const isCurrent = step === s.id;
@@ -200,8 +227,8 @@ export function TokenWizard() {
                         isCurrent
                           ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
                           : isCompleted
-                          ? "cursor-pointer text-foreground hover:bg-secondary/70"
-                          : "text-muted-foreground/60 cursor-not-allowed"
+                            ? "cursor-pointer text-foreground hover:bg-secondary/70"
+                            : "text-muted-foreground/60 cursor-not-allowed"
                       }`}
                     >
                       <span
@@ -209,13 +236,19 @@ export function TokenWizard() {
                           isCurrent
                             ? "bg-amber-500 text-slate-950 shadow-xs"
                             : isCompleted
-                            ? "bg-emerald-500 text-slate-950"
-                            : "bg-secondary text-muted-foreground"
+                              ? "bg-emerald-500 text-slate-950"
+                              : "bg-secondary text-muted-foreground"
                         }`}
                       >
-                        {isCompleted ? <Check className="h-3 w-3 stroke-[3]" /> : idx + 1}
+                        {isCompleted ? (
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        ) : (
+                          idx + 1
+                        )}
                       </span>
-                      <span className="hidden sm:inline truncate">{s.short}</span>
+                      <span className="hidden sm:inline truncate">
+                        {s.short}
+                      </span>
                     </button>
                     {idx < STEPS.length - 1 && (
                       <ChevronRight className="h-3.5 w-3.5 text-border/80 shrink-0 mx-0.5" />

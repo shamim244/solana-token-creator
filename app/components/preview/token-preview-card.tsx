@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { Badge } from "../ui/badge";
-import { ShieldCheck, ShieldAlert, Sparkles, Eye, CheckCircle2, Globe, Send, MessageCircle } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
+  Eye,
+  CheckCircle2,
+  Globe,
+  Send,
+  MessageCircle,
+} from "lucide-react";
 
 export interface TokenPreviewData {
   name: string;
@@ -102,7 +111,9 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
                     {data.decimals} Decimals
                   </Badge>
                 </div>
-                <p className="text-xs font-semibold text-amber-400">${displaySymbol}</p>
+                <p className="text-xs font-semibold text-amber-400">
+                  ${displaySymbol}
+                </p>
                 <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground">
                   {formattedSupply}{" "}
                   <span className="text-xs text-muted-foreground font-normal">
@@ -119,7 +130,10 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
             )}
 
             {/* Social pills */}
-            {(data.website || data.twitter || data.telegram || data.discord) && (
+            {(data.website ||
+              data.twitter ||
+              data.telegram ||
+              data.discord) && (
               <div className="mt-3 flex flex-wrap gap-2 pt-1 border-t border-border/40">
                 {data.website && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -175,7 +189,9 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
                 <Sparkles className="h-3 w-3" />
-                {data.revokeFreeze && data.revokeMint ? "Good (Safe)" : "Warning"}
+                {data.revokeFreeze && data.revokeMint
+                  ? "Good (Safe)"
+                  : "Warning"}
               </span>
             </div>
 
@@ -212,7 +228,9 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
                     data.revokeMint ? "text-emerald-400" : "text-amber-400"
                   }`}
                 >
-                  {data.revokeMint ? "Revoked (Fixed Supply)" : "Retained (Can inflate)"}
+                  {data.revokeMint
+                    ? "Revoked (Fixed Supply)"
+                    : "Retained (Can inflate)"}
                 </span>
               </div>
 
@@ -227,7 +245,9 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
                 </div>
                 <span
                   className={`font-semibold ${
-                    data.revokeUpdate ? "text-emerald-400" : "text-muted-foreground"
+                    data.revokeUpdate
+                      ? "text-emerald-400"
+                      : "text-muted-foreground"
                   }`}
                 >
                   {data.revokeUpdate ? "Immutable" : "Mutable"}
@@ -237,7 +257,9 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            DexScreener, Birdeye, and Raydium check for revoked Freeze Authority before granting verified green checkmarks to prevent honeypot accusations.
+            DexScreener, Birdeye, and Raydium check for revoked Freeze Authority
+            before granting verified green checkmarks to prevent honeypot
+            accusations.
           </p>
         </div>
       )}
@@ -245,7 +267,10 @@ export function TokenPreviewCard({ data }: { data: TokenPreviewData }) {
       {/* Security Footer Notice */}
       <div className="mt-4 flex items-center gap-2 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-[11px] text-muted-foreground">
         <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
-        <span>100% Non-Custodial: All minting instructions execute atomically in your wallet.</span>
+        <span>
+          100% Non-Custodial: All minting instructions execute atomically in
+          your wallet.
+        </span>
       </div>
     </div>
   );

@@ -2,7 +2,13 @@
 
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
-import { ArrowLeft, Rocket, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Rocket,
+  CheckCircle2,
+  ShieldCheck,
+  Loader2,
+} from "lucide-react";
 import { usePlatformSettings } from "../../../lib/hooks/use-platform-settings";
 
 interface StepReviewProps {
@@ -71,9 +77,12 @@ export function StepReview({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-foreground">Review & Confirmation</h2>
+        <h2 className="text-lg font-bold text-foreground">
+          Review & Confirmation
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Review your token specifications and on-chain cost breakdown before signing.
+          Review your token specifications and on-chain cost breakdown before
+          signing.
         </p>
       </div>
 
@@ -95,7 +104,9 @@ export function StepReview({
             )}
             <div>
               <p className="text-sm font-bold text-foreground">{data.name}</p>
-              <p className="font-mono text-amber-400 font-semibold">${data.symbol}</p>
+              <p className="font-mono text-amber-400 font-semibold">
+                ${data.symbol}
+              </p>
             </div>
           </div>
           <Badge variant="warning">{data.decimals} Decimals</Badge>
@@ -110,7 +121,9 @@ export function StepReview({
           </div>
           <div>
             <span className="text-muted-foreground">Target Cluster:</span>
-            <p className="font-semibold capitalize text-foreground">{cluster}</p>
+            <p className="font-semibold capitalize text-foreground">
+              {cluster}
+            </p>
           </div>
         </div>
 
@@ -155,7 +168,9 @@ export function StepReview({
                 variant={isAbsorbed ? "success" : "info"}
                 className="text-[10px] py-0 px-1.5 font-bold"
               >
-                {isAbsorbed ? "All-Inclusive Guarantee" : "Transparent Pass-Through"}
+                {isAbsorbed
+                  ? "All-Inclusive Guarantee"
+                  : "Transparent Pass-Through"}
               </Badge>
             )}
           </div>
@@ -240,7 +255,9 @@ export function StepReview({
                   (On-chain refundable deposit)
                 </span>
               </span>
-              <span className="font-mono text-foreground">~{networkRentSol.toFixed(3)} SOL</span>
+              <span className="font-mono text-foreground">
+                ~{networkRentSol.toFixed(3)} SOL
+              </span>
             </div>
           )}
         </div>
@@ -262,29 +279,37 @@ export function StepReview({
           {isMainnet ? (
             isAbsorbed ? (
               <>
-                <strong>100% Trust Guarantee:</strong> Network rent is absorbed from our platform
-                fee. Your Phantom wallet will prompt for <strong>exactly {displayTotal}</strong> —
-                zero hidden surprise fees.
+                <strong>100% Trust Guarantee:</strong> Network rent is absorbed
+                from our platform fee. Your Phantom wallet will prompt for{" "}
+                <strong>exactly {displayTotal}</strong> — zero hidden surprise
+                fees.
               </>
             ) : (
               <>
-                <strong>Transparent Pricing Guarantee:</strong> You pay the direct platform fee (
-                {serviceFeeTotal.toFixed(3)} SOL) plus standard Solana account rent (~
+                <strong>Transparent Pricing Guarantee:</strong> You pay the
+                direct platform fee ({serviceFeeTotal.toFixed(3)} SOL) plus
+                standard Solana account rent (~
                 {networkRentSol.toFixed(3)} SOL). Phantom will prompt for{" "}
                 <strong>~{displayTotal}</strong>.
               </>
             )
           ) : (
             <>
-              <strong>Devnet Sandbox:</strong> Platform creation and authority management tools are
-              100% free of charge. Only standard Solana testnet rent applies.
+              <strong>Devnet Sandbox:</strong> Platform creation and authority
+              management tools are 100% free of charge. Only standard Solana
+              testnet rent applies.
             </>
           )}
         </span>
       </div>
 
       <div className="flex justify-between border-t border-border/60 pt-4">
-        <Button onClick={onBack} disabled={isDeploying} variant="outline" className="gap-1.5 text-xs">
+        <Button
+          onClick={onBack}
+          disabled={isDeploying}
+          variant="outline"
+          className="gap-1.5 text-xs"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { MetadataStorageService, type MetadataPayload } from "../../lib/metadata-storage-service";
+import {
+  MetadataStorageService,
+  type MetadataPayload,
+} from "../../lib/metadata-storage-service";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +30,9 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     console.error("Metadata upload route failed:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "Failed to upload metadata to storage";
+      error instanceof Error
+        ? error.message
+        : "Failed to upload metadata to storage";
     return NextResponse.json(
       { success: false, error: errorMessage },
       { status: 500 }

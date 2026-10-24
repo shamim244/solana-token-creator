@@ -62,12 +62,15 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   // Infrastructure
   mainnetRpcUrl:
     process.env.MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com",
-  devnetRpcUrl:
-    process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com",
+  devnetRpcUrl: process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com",
   irysNetwork: "devnet",
 };
 
-const CONFIG_FILE_PATH = path.join(process.cwd(), "config", "platform-settings.json");
+const CONFIG_FILE_PATH = path.join(
+  process.cwd(),
+  "config",
+  "platform-settings.json"
+);
 
 // In-memory cache for serverless / edge environments where filesystem is read-only
 let inMemorySettingsCache: PlatformSettings | null = null;
@@ -82,14 +85,21 @@ export function getPlatformSettings(): PlatformSettings {
   }
 
   try {
-    if (typeof fs !== "undefined" && fs.existsSync && fs.existsSync(CONFIG_FILE_PATH)) {
+    if (
+      typeof fs !== "undefined" &&
+      fs.existsSync &&
+      fs.existsSync(CONFIG_FILE_PATH)
+    ) {
       const data = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
       const parsed = JSON.parse(data) as Partial<PlatformSettings>;
       inMemorySettingsCache = { ...DEFAULT_SETTINGS, ...parsed };
       return inMemorySettingsCache;
     }
   } catch (err) {
-    console.warn("Storage notice: filesystem read unavailable or read-only, using memory fallback.", err);
+    console.warn(
+      "Storage notice: filesystem read unavailable or read-only, using memory fallback.",
+      err
+    );
   }
 
   inMemorySettingsCache = { ...DEFAULT_SETTINGS };
@@ -102,7 +112,9 @@ export function getPlatformSettings(): PlatformSettings {
  * 2. If running on read-only edge/serverless (Cloudflare / Lambda), caches in-memory safely.
  * 3. If UPSTASH_REDIS_REST_URL is configured, syncs to cloud KV in the background.
  */
-export function savePlatformSettings(newSettings: Partial<PlatformSettings>): PlatformSettings {
+export function savePlatformSettings(
+  newSettings: Partial<PlatformSettings>
+): PlatformSettings {
   const current = getPlatformSettings();
   const updated: PlatformSettings = {
     ...current,
@@ -119,7 +131,11 @@ export function savePlatformSettings(newSettings: Partial<PlatformSettings>): Pl
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-      fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+      fs.writeFileSync(
+        CONFIG_FILE_PATH,
+        JSON.stringify(updated, null, 2),
+        "utf-8"
+      );
     }
   } catch (err) {
     console.warn(

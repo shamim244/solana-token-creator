@@ -29,9 +29,12 @@ export function StepAuthorities({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-foreground">Security & Authority Settings</h2>
+        <h2 className="text-lg font-bold text-foreground">
+          Security & Authority Settings
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Configuring authority revocations is the single biggest trust signal for decentralized trading on Solana.
+          Configuring authority revocations is the single biggest trust signal
+          for decentralized trading on Solana.
         </p>
       </div>
 
@@ -60,7 +63,9 @@ export function StepAuthorities({
                 )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Prevents anyone from freezing token accounts. Decentralized exchanges (Raydium, Meteora) and scanners require this so buyers know their tokens cannot be trapped.
+                Prevents anyone from freezing token accounts. Decentralized
+                exchanges (Raydium, Meteora) and scanners require this so buyers
+                know their tokens cannot be trapped.
               </p>
             </div>
             <Switch
@@ -94,7 +99,9 @@ export function StepAuthorities({
                 )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Permanently caps the token supply at your initial amount. No more tokens can ever be minted, guaranteeing 0% inflation to your holders.
+                Permanently caps the token supply at your initial amount. No
+                more tokens can ever be minted, guaranteeing 0% inflation to
+                your holders.
               </p>
             </div>
             <Switch
@@ -129,7 +136,8 @@ export function StepAuthorities({
                 )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Prevents changing the token name, symbol, or logo after creation. Ensures metadata permanence and transparency.
+                Prevents changing the token name, symbol, or logo after
+                creation. Ensures metadata permanence and transparency.
               </p>
             </div>
             <Switch
@@ -154,7 +162,11 @@ export function StepAuthorities({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button onClick={onNext} variant="amber" className="px-6 font-semibold gap-1.5">
+        <Button
+          onClick={onNext}
+          variant="amber"
+          className="px-6 font-semibold gap-1.5"
+        >
           Review & Deploy
           <ArrowRight className="h-4 w-4" />
         </Button>

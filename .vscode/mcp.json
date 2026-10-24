@@ -6,17 +6,11 @@
     },
     "magicuidesign-mcp": {
       "command": "bunx",
-      "args": [
-        "-y",
-        "@magicuidesign/mcp@latest"
-      ]
+      "args": ["-y", "@magicuidesign/mcp@latest"]
     },
     "shadcn": {
       "command": "bunx",
-      "args": [
-        "shadcn@latest",
-        "mcp"
-      ]
+      "args": ["shadcn@latest", "mcp"]
     }
   }
 }

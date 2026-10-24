@@ -76,12 +76,17 @@ export interface CreateTokenResult {
 /**
  * Calculates raw base units from human-readable supply string and decimals.
  */
-export function calculateSupplyBaseUnits(supplyStr: string, decimals: number): bigint {
+export function calculateSupplyBaseUnits(
+  supplyStr: string,
+  decimals: number
+): bigint {
   const cleanSupply = supplyStr.replace(/,/g, "").trim();
   const [whole, fraction = ""] = cleanSupply.split(".");
   const baseUnitsPerToken = 10n ** BigInt(decimals);
   const normalizedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
-  return BigInt(whole || "0") * baseUnitsPerToken + BigInt(normalizedFraction || "0");
+  return (
+    BigInt(whole || "0") * baseUnitsPerToken + BigInt(normalizedFraction || "0")
+  );
 }
 
 /**
@@ -157,7 +162,8 @@ export async function createAndDeployToken(
   if (!isLocalnet) {
     try {
       const metadataPda = await getMetadataPda(mintKeypair.address);
-      const metadataSerializer = getCreateMetadataAccountV3InstructionDataSerializer();
+      const metadataSerializer =
+        getCreateMetadataAccountV3InstructionDataSerializer();
 
       // Prefer decentralized metadata JSON URI over raw image URL
       const metadataUri = params.metadataUri || params.imageUrl || "";
@@ -190,15 +196,24 @@ export async function createAndDeployToken(
           { address: payer.address, role: AccountRole.READONLY_SIGNER },
           { address: payer.address, role: AccountRole.WRITABLE_SIGNER },
           { address: payer.address, role: AccountRole.READONLY_SIGNER },
-          { address: address("11111111111111111111111111111111"), role: AccountRole.READONLY },
-          { address: address("SysvarRent111111111111111111111111111111111"), role: AccountRole.READONLY },
+          {
+            address: address("11111111111111111111111111111111"),
+            role: AccountRole.READONLY,
+          },
+          {
+            address: address("SysvarRent111111111111111111111111111111111"),
+            role: AccountRole.READONLY,
+          },
         ],
         data: serializedData,
       };
 
       instructions.push(metadataIx);
     } catch (err) {
-      console.warn("Metaplex metadata instruction building failed, proceeding with SPL Token creation:", err);
+      console.warn(
+        "Metaplex metadata instruction building failed, proceeding with SPL Token creation:",
+        err
+      );
     }
   }
 
@@ -253,7 +268,9 @@ export async function createAndDeployToken(
     const mintFee = params.revokeMintFeeSol ?? 0.1;
     const updateFee = params.revokeUpdateFeeSol ?? 0.1;
     const shouldAbsorb = params.absorbNetworkRent ?? true;
-    const destinationTreasury = address(params.treasuryWallet || PLATFORM_TREASURY);
+    const destinationTreasury = address(
+      params.treasuryWallet || PLATFORM_TREASURY
+    );
 
     let allInclusiveTotalSol = baseFee;
     if (params.revokeFreeze) allInclusiveTotalSol += freezeFee;
@@ -268,13 +285,14 @@ export async function createAndDeployToken(
     // Metaplex V3 Metadata: 5,616,720 lamports (679 bytes)
     const ataRentLamports = 2039280n;
     const metadataRentLamports = isLocalnet ? 0n : 5616720n;
-    const totalNetworkRentLamports = mintRent + ataRentLamports + metadataRentLamports;
+    const totalNetworkRentLamports =
+      mintRent + ataRentLamports + metadataRentLamports;
 
     // Absorb network rent if configured, otherwise full transfer
     const platformTransferLamports = shouldAbsorb
-      ? (allInclusiveLamports > totalNetworkRentLamports
-          ? allInclusiveLamports - totalNetworkRentLamports
-          : 0n)
+      ? allInclusiveLamports > totalNetworkRentLamports
+        ? allInclusiveLamports - totalNetworkRentLamports
+        : 0n
       : allInclusiveLamports;
 
     if (platformTransferLamports > 0n) {

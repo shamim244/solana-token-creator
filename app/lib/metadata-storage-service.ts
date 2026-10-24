@@ -28,6 +28,12 @@ export interface UploadResult {
   error?: string;
 }
 
+export interface StorageOptions {
+  rpcUrl?: string;
+  privateKey?: string;
+  pinataJwt?: string;
+}
+
 /**
  * Enterprise Multi-Tier Metadata Storage Service.
  * Guarantees 100% uptime with automated fallbacks:
@@ -37,8 +43,10 @@ export interface UploadResult {
  * 4. Self-Hosted Next.js Gateway (Ultimate resilience guarantee)
  */
 export class MetadataStorageService {
-  private static getPlatformKey(): string {
-    const key = process.env.IRYS_WALLET_PRIVATE_KEY || process.env.SOLANA_PRIVATE_KEY;
+  private static getPlatformKey(overrideKey?: string): string {
+    if (overrideKey?.trim()) return overrideKey.trim();
+    const key =
+      process.env.IRYS_WALLET_PRIVATE_KEY || process.env.SOLANA_PRIVATE_KEY;
     if (key?.trim()) return key.trim();
 
     // Default to ephemeral key for 0-balance free tier uploads (<100 KiB)
@@ -46,9 +54,15 @@ export class MetadataStorageService {
     return bs58.encode(ephemeral.secretKey);
   }
 
-  private static getRpcUrl(cluster: string = "devnet"): string {
+  private static getRpcUrl(
+    cluster: string = "devnet",
+    overrideRpc?: string
+  ): string {
+    if (overrideRpc?.trim()) return overrideRpc.trim();
     if (cluster === "mainnet") {
-      return process.env.MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com";
+      return (
+        process.env.MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com"
+      );
     }
     return process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com";
   }
@@ -56,11 +70,14 @@ export class MetadataStorageService {
   /**
    * Uploads token logo and Metaplex metadata JSON using multi-tiered fallback.
    */
-  static async upload(payload: MetadataPayload): Promise<UploadResult> {
+  static async upload(
+    payload: MetadataPayload,
+    options?: StorageOptions
+  ): Promise<UploadResult> {
     const cluster = payload.cluster || "devnet";
     const isMainnet = cluster === "mainnet";
-    const privateKey = this.getPlatformKey();
-    const rpcUrl = this.getRpcUrl(cluster);
+    const privateKey = this.getPlatformKey(options?.privateKey);
+    const rpcUrl = this.getRpcUrl(cluster, options?.rpcUrl);
 
     // Prepare image buffer
     let imageBuffer: Buffer | null = null;
@@ -97,7 +114,8 @@ export class MetadataStorageService {
       const extensions: Record<string, string> = {};
       if (payload.website?.trim()) extensions.website = payload.website.trim();
       if (payload.twitter?.trim()) extensions.twitter = payload.twitter.trim();
-      if (payload.telegram?.trim()) extensions.telegram = payload.telegram.trim();
+      if (payload.telegram?.trim())
+        extensions.telegram = payload.telegram.trim();
       if (payload.discord?.trim()) extensions.discord = payload.discord.trim();
 
       const metadataPayload = {
@@ -109,7 +127,10 @@ export class MetadataStorageService {
         ...(payload.tags && payload.tags.length > 0 && { tags: payload.tags }),
       };
 
-      const metadataBuffer = Buffer.from(JSON.stringify(metadataPayload, null, 2), "utf-8");
+      const metadataBuffer = Buffer.from(
+        JSON.stringify(metadataPayload, null, 2),
+        "utf-8"
+      );
       const metadataReceipt = await uploader.upload(metadataBuffer, {
         tags: [{ name: "Content-Type", value: "application/json" }],
       });
@@ -122,23 +143,38 @@ export class MetadataStorageService {
         success: true,
         metadataUri: `https://gateway.irys.xyz/${metadataReceipt.id}`,
         imageUrl: finalImageUrl,
-        provider: isFundedKey && imageBuffer && imageBuffer.length >= 100 * 1024 ? "irys-funded" : "irys-free",
+        provider:
+          isFundedKey && imageBuffer && imageBuffer.length >= 100 * 1024
+            ? "irys-funded"
+            : "irys-free",
       };
     } catch (irysErr) {
-      console.warn("Irys upload attempt failed, engaging resilient fallback:", irysErr);
+      console.warn(
+        "Irys upload attempt failed, engaging resilient fallback:",
+        irysErr
+      );
     }
 
     // TIER 3: IPFS / Pinata (if credentials exist)
-    if (process.env.PINATA_JWT || process.env.PINATA_API_KEY) {
+    const pinataJwt = options?.pinataJwt || process.env.PINATA_JWT;
+    if (pinataJwt || process.env.PINATA_API_KEY) {
       try {
-        const ipfsResult = await this.uploadToPinata(payload, imageBuffer, contentType);
+        const ipfsResult = await this.uploadToPinata(
+          payload,
+          imageBuffer,
+          contentType,
+          pinataJwt
+        );
         if (ipfsResult) return ipfsResult;
       } catch (ipfsErr) {
-        console.warn("IPFS fallback failed, engaging self-hosted fallback:", ipfsErr);
+        console.warn(
+          "IPFS fallback failed, engaging self-hosted fallback:",
+          ipfsErr
+        );
       }
     }
 
-    // TIER 4: Self-Hosted Next.js Gateway (Zero External Dependencies)
+    // TIER 4: Self-Hosted Gateway (Safe with Edge/Serverless try-catch)
     return await this.saveSelfHostedMetadata(payload, imageBuffer, contentType);
   }
 
@@ -148,9 +184,10 @@ export class MetadataStorageService {
   private static async uploadToPinata(
     payload: MetadataPayload,
     imageBuffer: Buffer | null,
-    contentType: string
+    contentType: string,
+    overrideJwt?: string
   ): Promise<UploadResult | null> {
-    const pinataJwt = process.env.PINATA_JWT;
+    const pinataJwt = overrideJwt || process.env.PINATA_JWT;
     if (!pinataJwt) return null;
 
     let finalImageUrl = payload.existingImageUrl || "";
@@ -158,14 +195,19 @@ export class MetadataStorageService {
     // Upload image to IPFS
     if (imageBuffer) {
       const formData = new FormData();
-      const blob = new Blob([new Uint8Array(imageBuffer)], { type: contentType });
+      const blob = new Blob([new Uint8Array(imageBuffer)], {
+        type: contentType,
+      });
       formData.append("file", blob, payload.imageFilename || "token-logo.png");
 
-      const imgRes = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${pinataJwt}` },
-        body: formData,
-      });
+      const imgRes = await fetch(
+        "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${pinataJwt}` },
+          body: formData,
+        }
+      );
 
       if (imgRes.ok) {
         const imgData = await imgRes.json();
@@ -193,14 +235,17 @@ export class MetadataStorageService {
       },
     };
 
-    const jsonRes = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${pinataJwt}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(jsonBody),
-    });
+    const jsonRes = await fetch(
+      "https://api.pinata.cloud/pinning/pinJSONToIPFS",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${pinataJwt}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(jsonBody),
+      }
+    );
 
     if (jsonRes.ok) {
       const jsonData = await jsonRes.json();
@@ -223,51 +268,77 @@ export class MetadataStorageService {
     imageBuffer: Buffer | null,
     contentType: string
   ): Promise<UploadResult> {
-    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const storageDir = path.join(process.cwd(), "public", "hosted-metadata");
+    try {
+      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const storageDir = path.join(process.cwd(), "public", "hosted-metadata");
 
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true });
+      if (!fs.existsSync(storageDir)) {
+        fs.mkdirSync(storageDir, { recursive: true });
+      }
+
+      let finalImageUrl = payload.existingImageUrl || "";
+
+      if (imageBuffer) {
+        const ext = contentType.includes("png")
+          ? "png"
+          : contentType.includes("webp")
+            ? "webp"
+            : "jpg";
+        const imageFilename = `${id}.${ext}`;
+        const imagePath = path.join(storageDir, imageFilename);
+        fs.writeFileSync(imagePath, imageBuffer);
+        finalImageUrl = `/hosted-metadata/${imageFilename}`;
+      }
+
+      const metadataContent = {
+        name: payload.name,
+        symbol: payload.symbol,
+        description: payload.description || "",
+        image: finalImageUrl,
+        extensions: {
+          website: payload.website,
+          twitter: payload.twitter,
+          telegram: payload.telegram,
+          discord: payload.discord,
+        },
+        tags: payload.tags || [],
+      };
+
+      const jsonFilename = `${id}.json`;
+      const jsonPath = path.join(storageDir, jsonFilename);
+      fs.writeFileSync(
+        jsonPath,
+        JSON.stringify(metadataContent, null, 2),
+        "utf-8"
+      );
+
+      // Construct origin URL
+      const appBaseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const fullMetadataUri = `${appBaseUrl}/hosted-metadata/${jsonFilename}`;
+      const fullImageUrl = finalImageUrl.startsWith("http")
+        ? finalImageUrl
+        : `${appBaseUrl}${finalImageUrl}`;
+
+      return {
+        success: true,
+        metadataUri: fullMetadataUri,
+        imageUrl: fullImageUrl,
+        provider: "self-hosted",
+      };
+    } catch (fsErr) {
+      console.warn(
+        "Self-hosted storage write unavailable (read-only edge environment):",
+        fsErr
+      );
+      return {
+        success: false,
+        metadataUri: "",
+        imageUrl: payload.existingImageUrl || "",
+        provider: "self-hosted",
+        error:
+          "Decentralized metadata upload failed across all providers and local filesystem is read-only.",
+      };
     }
-
-    let finalImageUrl = payload.existingImageUrl || "";
-
-    if (imageBuffer) {
-      const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-      const imageFilename = `${id}.${ext}`;
-      const imagePath = path.join(storageDir, imageFilename);
-      fs.writeFileSync(imagePath, imageBuffer);
-      finalImageUrl = `/hosted-metadata/${imageFilename}`;
-    }
-
-    const metadataContent = {
-      name: payload.name,
-      symbol: payload.symbol,
-      description: payload.description || "",
-      image: finalImageUrl,
-      extensions: {
-        website: payload.website,
-        twitter: payload.twitter,
-        telegram: payload.telegram,
-        discord: payload.discord,
-      },
-      tags: payload.tags || [],
-    };
-
-    const jsonFilename = `${id}.json`;
-    const jsonPath = path.join(storageDir, jsonFilename);
-    fs.writeFileSync(jsonPath, JSON.stringify(metadataContent, null, 2), "utf-8");
-
-    // Construct origin URL
-    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const fullMetadataUri = `${appBaseUrl}/hosted-metadata/${jsonFilename}`;
-    const fullImageUrl = finalImageUrl.startsWith("http") ? finalImageUrl : `${appBaseUrl}${finalImageUrl}`;
-
-    return {
-      success: true,
-      metadataUri: fullMetadataUri,
-      imageUrl: fullImageUrl,
-      provider: "self-hosted",
-    };
   }
 }
