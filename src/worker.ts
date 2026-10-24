@@ -13,6 +13,14 @@ export interface Env {
   MAINNET_RPC_URL?: string;
   DEVNET_RPC_URL?: string;
   PINATA_JWT?: string;
+  METADATA_KV?: {
+    get(key: string, type?: "text" | "json" | "arrayBuffer"): Promise<any>;
+    put(
+      key: string,
+      value: string | ArrayBuffer | ArrayBufferView,
+      options?: Record<string, unknown>
+    ): Promise<void>;
+  };
 }
 
 export interface MetadataPayload {
@@ -231,16 +239,25 @@ const worker = {
       !url.pathname.endsWith("/image")
     ) {
       const id = url.pathname.replace(/^\/api\/metadata\//, "").trim();
-      const item = edgeMetadataCache.get(id);
+      let metadataJson = edgeMetadataCache.get(id)?.metadataJson;
 
-      if (!item) {
+      if (!metadataJson && env.METADATA_KV) {
+        try {
+          const stored = await env.METADATA_KV.get(`meta:${id}`, "text");
+          if (stored) metadataJson = JSON.parse(stored);
+        } catch (kvErr) {
+          console.warn("KV metadata read error:", kvErr);
+        }
+      }
+
+      if (!metadataJson) {
         return Response.json(
           { error: "Metadata not found or expired" },
           { status: 404, headers: corsHeaders }
         );
       }
 
-      return new Response(JSON.stringify(item.metadataJson, null, 2), {
+      return new Response(JSON.stringify(metadataJson, null, 2), {
         status: 200,
         headers: {
           ...corsHeaders,
@@ -260,19 +277,34 @@ const worker = {
         .replace(/\/image$/, "")
         .trim();
       const item = edgeMetadataCache.get(id);
+      let imageBytes = item?.imageBytes;
+      let contentType = item?.imageContentType || "image/webp";
 
-      if (!item || !item.imageBytes) {
+      if (!imageBytes && env.METADATA_KV) {
+        try {
+          const kvBuf = await env.METADATA_KV.get(`img:${id}`, "arrayBuffer");
+          const kvMime = await env.METADATA_KV.get(`img_mime:${id}`, "text");
+          if (kvBuf) {
+            imageBytes = new Uint8Array(kvBuf);
+            if (kvMime) contentType = kvMime;
+          }
+        } catch (kvErr) {
+          console.warn("KV image read error:", kvErr);
+        }
+      }
+
+      if (!imageBytes) {
         return new Response("Image not found", {
           status: 404,
           headers: corsHeaders,
         });
       }
 
-      return new Response(item.imageBytes as unknown as BodyInit, {
+      return new Response(imageBytes as unknown as BodyInit, {
         status: 200,
         headers: {
           ...corsHeaders,
-          "content-type": item.imageContentType || "image/webp",
+          "content-type": contentType,
           "cache-control": "public, max-age=31536000, immutable",
         },
       });
@@ -413,6 +445,21 @@ const worker = {
           imageContentType,
           createdAt: Date.now(),
         });
+
+        if (env.METADATA_KV) {
+          try {
+            await env.METADATA_KV.put(
+              `meta:${id}`,
+              JSON.stringify(metadataJson)
+            );
+            if (imageBytes) {
+              await env.METADATA_KV.put(`img:${id}`, imageBytes);
+              await env.METADATA_KV.put(`img_mime:${id}`, imageContentType);
+            }
+          } catch (kvErr) {
+            console.warn("KV metadata write error:", kvErr);
+          }
+        }
 
         const fullMetadataUri = `${url.origin}/api/metadata/${id}`;
 
