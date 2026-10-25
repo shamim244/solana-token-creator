@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const partner = applyForPartner({
+    const partner = await applyForPartner({
       name: body.name,
       contactHandle: body.contactHandle || "",
       platformUrl: body.platformUrl || "",

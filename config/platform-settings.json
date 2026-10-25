@@ -1,5 +1,5 @@
 {
-  "mainnetBaseFeeSol": 0.3,
+  "mainnetBaseFeeSol": 0.25,
   "devnetBaseFeeSol": 0.3,
   "revokeFreezeFeeSol": 0.1,
   "revokeMintFeeSol": 0.1,
@@ -15,7 +15,7 @@
   "promoBannerText": "⚡ Launch Week Special: 20% Off All Authority Revocations!",
   "referralProgramActive": false,
   "referralFeeSharePercent": 20,
-  "platformTitle": "Solana Token Studio",
+  "platformTitle": "Test Studio 1792925949430",
   "platformTagline": "SPL & Token-2022 Launchpad",
   "supportTelegram": "https://t.me/solanatokenstudio",
   "supportTwitter": "https://x.com/solanatokenstudio",

@@ -12,18 +12,18 @@ import {
   savePartnersStore,
 } from "../app/lib/partner-service";
 
-describe("Partner & Affiliate Marketing System", () => {
-  beforeEach(() => {
-    // Reset test store in memory
-    savePartnersStore({
+describe("Partner & Affiliate Marketing System (Drizzle SQLite Engine)", () => {
+  beforeEach(async () => {
+    // Reset test store in SQLite database
+    await savePartnersStore({
       partners: [],
       conversions: [],
       payouts: [],
     });
   });
 
-  it("submits partner application and sets status to pending", () => {
-    const partner = applyForPartner({
+  it("submits partner application and sets status to pending", async () => {
+    const partner = await applyForPartner({
       name: "Solana Alpha Hunter",
       contactHandle: "@alphahunter",
       platformUrl: "https://x.com/alphahunter",
@@ -38,13 +38,13 @@ describe("Partner & Affiliate Marketing System", () => {
     expect(partner.clicks).toBe(0);
     expect(partner.unclaimedBalanceSol).toBe(0);
 
-    const lookedUp = findPartner("alphahunter");
+    const lookedUp = await findPartner("alphahunter");
     expect(lookedUp).toBeDefined();
     expect(lookedUp?.name).toBe("Solana Alpha Hunter");
   });
 
-  it("prevents duplicate slugs or payout wallets", () => {
-    applyForPartner({
+  it("prevents duplicate slugs or payout wallets", async () => {
+    await applyForPartner({
       name: "Partner A",
       contactHandle: "@partnerA",
       platformUrl: "https://x.com/partnerA",
@@ -53,7 +53,7 @@ describe("Partner & Affiliate Marketing System", () => {
       payoutWallet: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
     });
 
-    expect(() =>
+    await expect(
       applyForPartner({
         name: "Partner B",
         contactHandle: "@partnerB",
@@ -62,11 +62,11 @@ describe("Partner & Affiliate Marketing System", () => {
         slug: "vip-link",
         payoutWallet: "AnotherWalletAddress1111111111111111111111",
       })
-    ).toThrow('Partner link slug "vip-link" is already taken.');
+    ).rejects.toThrow('Partner link slug "vip-link" is already taken.');
   });
 
-  it("approves partner with custom commission % and audience discount %", () => {
-    const partner = applyForPartner({
+  it("approves partner with custom commission % and audience discount %", async () => {
+    const partner = await applyForPartner({
       name: "VIP Influencer",
       contactHandle: "@vipguy",
       platformUrl: "https://youtube.com/@vipguy",
@@ -75,7 +75,7 @@ describe("Partner & Affiliate Marketing System", () => {
       payoutWallet: "7Z3cW1jK111111111111111111111111111111111111",
     });
 
-    const approved = approvePartner({
+    const approved = await approvePartner({
       partnerId: partner.id,
       customCommissionPercent: 35, // Negotiated 35% commission
       audienceDiscountPercent: 10, // 10% discount for their viewers
@@ -86,8 +86,8 @@ describe("Partner & Affiliate Marketing System", () => {
     expect(approved.audienceDiscountPercent).toBe(10);
   });
 
-  it("records clicks, wallet connections, and paid conversions with custom rate", () => {
-    const partner = applyForPartner({
+  it("records clicks, wallet connections, and paid conversions with custom rate", async () => {
+    const partner = await applyForPartner({
       name: "Crypto Reviewer",
       contactHandle: "@reviewer",
       platformUrl: "https://t.me/reviewer",
@@ -96,21 +96,21 @@ describe("Partner & Affiliate Marketing System", () => {
       payoutWallet: "54Xn6d6X4wHrkZ9eHnC8F2v56yZ8K5j2Q8s7J3k4L5m6",
     });
 
-    approvePartner({
+    await approvePartner({
       partnerId: partner.id,
       customCommissionPercent: 30, // 30% commission
     });
 
     // 1. Visitor clicks link
-    const clickOk = recordPartnerClick("reviewer");
+    const clickOk = await recordPartnerClick("reviewer");
     expect(clickOk).toBe(true);
 
     // 2. Visitor connects wallet
-    const connectOk = recordPartnerWalletConnection("reviewer");
+    const connectOk = await recordPartnerWalletConnection("reviewer");
     expect(connectOk).toBe(true);
 
     // 3. User deploys a token with 0.3 SOL creation fee
-    const conversion = recordPartnerConversion({
+    const conversion = await recordPartnerConversion({
       slugOrWallet: "reviewer",
       userWallet: "UserWalletAddress11111111111111111111111111",
       type: "token_create",
@@ -123,7 +123,7 @@ describe("Partner & Affiliate Marketing System", () => {
     expect(conversion?.commissionSol).toBe(0.09);
     expect(conversion?.commissionPercent).toBe(30);
 
-    const updated = findPartner("reviewer");
+    const updated = await findPartner("reviewer");
     expect(updated?.clicks).toBe(1);
     expect(updated?.walletsConnected).toBe(1);
     expect(updated?.conversionsCount).toBe(1);
@@ -132,8 +132,8 @@ describe("Partner & Affiliate Marketing System", () => {
     expect(updated?.lifetimeEarningsSol).toBe(0.09);
   });
 
-  it("handles withdrawal claim threshold and payout completion lifecycle", () => {
-    const partner = applyForPartner({
+  it("handles withdrawal claim threshold and payout completion lifecycle", async () => {
+    const partner = await applyForPartner({
       name: "Top Trader",
       contactHandle: "@toptrader",
       platformUrl: "https://x.com/toptrader",
@@ -142,38 +142,41 @@ describe("Partner & Affiliate Marketing System", () => {
       payoutWallet: "TopTraderWallet1111111111111111111111111111",
     });
 
-    approvePartner({ partnerId: partner.id, customCommissionPercent: 25 });
+    await approvePartner({
+      partnerId: partner.id,
+      customCommissionPercent: 25,
+    });
 
     // Below 0.05 SOL threshold -> should throw
-    recordPartnerConversion({
+    await recordPartnerConversion({
       slugOrWallet: "toptrader",
       userWallet: "BuyerA",
       type: "token_create",
       feeSol: 0.1, // Commission = 0.025 SOL (< 0.05 SOL)
     });
 
-    expect(() => requestPartnerClaim("toptrader")).toThrow(
+    await expect(requestPartnerClaim("toptrader")).rejects.toThrow(
       "Minimum withdrawal threshold is 0.05 SOL"
     );
 
     // Add another conversion to surpass threshold
-    recordPartnerConversion({
+    await recordPartnerConversion({
       slugOrWallet: "toptrader",
       userWallet: "BuyerB",
       type: "token_create",
       feeSol: 0.2, // Commission = 0.05 SOL -> total = 0.075 SOL
     });
 
-    const payout = requestPartnerClaim("toptrader");
+    const payout = await requestPartnerClaim("toptrader");
     expect(payout.amountSol).toBe(0.075);
     expect(payout.status).toBe("pending");
 
     // Partner unclaimed balance is now 0 SOL
-    const partnerAfterClaim = findPartner("toptrader");
+    const partnerAfterClaim = await findPartner("toptrader");
     expect(partnerAfterClaim?.unclaimedBalanceSol).toBe(0);
 
     // Admin marks payout completed with Solana Tx signature
-    const completed = completePayout({
+    const completed = await completePayout({
       payoutId: payout.id,
       txSignature: "on_chain_tx_sig_toptrader_payout_777",
     });
@@ -181,12 +184,12 @@ describe("Partner & Affiliate Marketing System", () => {
     expect(completed.status).toBe("completed");
     expect(completed.txSignature).toBe("on_chain_tx_sig_toptrader_payout_777");
 
-    const partnerAfterPayout = findPartner("toptrader");
+    const partnerAfterPayout = await findPartner("toptrader");
     expect(partnerAfterPayout?.claimedPayoutsSol).toBe(0.075);
   });
 
-  it("rejects partner application and prevents clicks", () => {
-    const partner = applyForPartner({
+  it("rejects partner application and prevents clicks", async () => {
+    const partner = await applyForPartner({
       name: "Spam Submitter",
       contactHandle: "@spammer",
       platformUrl: "https://spam.xyz",
@@ -195,14 +198,14 @@ describe("Partner & Affiliate Marketing System", () => {
       payoutWallet: "SpamWallet11111111111111111111111111111111",
     });
 
-    const rejected = rejectPartner(partner.id);
+    const rejected = await rejectPartner(partner.id);
     expect(rejected).toBe(true);
 
-    const partnerRecord = findPartner("spam");
+    const partnerRecord = await findPartner("spam");
     expect(partnerRecord?.status).toBe("rejected");
 
     // Clicks on rejected partners are ignored
-    const clickOk = recordPartnerClick("spam");
+    const clickOk = await recordPartnerClick("spam");
     expect(clickOk).toBe(false);
   });
 });

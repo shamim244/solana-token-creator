@@ -1,5 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { eq } from "drizzle-orm";
+import { db, ensureDbInitialized } from "./db";
+import { platformSettingsTable } from "./db/schema";
 
 export interface PlatformSettings {
   // 1. Monetization & Fees (in SOL)
@@ -80,45 +83,144 @@ const CONFIG_FILE_PATH = path.join(
   "platform-settings.json"
 );
 
-// In-memory cache for serverless / edge environments where filesystem is read-only
+// In-memory cache for sub-millisecond synchronous reads
 let inMemorySettingsCache: PlatformSettings | null = null;
 
+function loadFallbackFileSettings(): PlatformSettings {
+  try {
+    if (fs.existsSync(CONFIG_FILE_PATH)) {
+      const data = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+      const parsed = JSON.parse(data) as Partial<PlatformSettings>;
+      return { ...DEFAULT_SETTINGS, ...parsed };
+    }
+  } catch {
+    // Ignore error
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
 /**
- * Reads platform settings from persistent disk, cloud KV, or falls back to defaults.
- * Completely crash-proof across VPS, Cloudflare Pages, and Serverless.
+ * Asynchronously loads settings from SQLite, seeding from config file if empty.
+ */
+export async function getPlatformSettingsAsync(): Promise<PlatformSettings> {
+  await ensureDbInitialized();
+
+  try {
+    const rows = await db
+      .select()
+      .from(platformSettingsTable)
+      .where(eq(platformSettingsTable.id, "default"));
+
+    if (rows.length > 0 && rows[0].settingsJson) {
+      const parsed = JSON.parse(
+        rows[0].settingsJson
+      ) as Partial<PlatformSettings>;
+      inMemorySettingsCache = { ...DEFAULT_SETTINGS, ...parsed };
+      return inMemorySettingsCache;
+    }
+
+    // Seed from JSON file or defaults
+    const initial = loadFallbackFileSettings();
+    await db
+      .insert(platformSettingsTable)
+      .values({
+        id: "default",
+        settingsJson: JSON.stringify(initial),
+        updatedAt: new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: platformSettingsTable.id,
+        set: {
+          settingsJson: JSON.stringify(initial),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+
+    inMemorySettingsCache = initial;
+    return inMemorySettingsCache;
+  } catch (err) {
+    console.warn(
+      "Notice: SQLite read failed, falling back to cached settings:",
+      err
+    );
+    if (!inMemorySettingsCache) {
+      inMemorySettingsCache = loadFallbackFileSettings();
+    }
+    return inMemorySettingsCache;
+  }
+}
+
+/**
+ * Synchronous access for performance-critical client/SSR contexts.
  */
 export function getPlatformSettings(): PlatformSettings {
   if (inMemorySettingsCache) {
     return inMemorySettingsCache;
   }
 
-  try {
-    if (
-      typeof fs !== "undefined" &&
-      fs.existsSync &&
-      fs.existsSync(CONFIG_FILE_PATH)
-    ) {
-      const data = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
-      const parsed = JSON.parse(data) as Partial<PlatformSettings>;
-      inMemorySettingsCache = { ...DEFAULT_SETTINGS, ...parsed };
-      return inMemorySettingsCache;
-    }
-  } catch (err) {
-    console.warn(
-      "Storage notice: filesystem read unavailable or read-only, using memory fallback.",
-      err
-    );
-  }
+  inMemorySettingsCache = loadFallbackFileSettings();
 
-  inMemorySettingsCache = { ...DEFAULT_SETTINGS };
+  // Trigger background async refresh from SQLite
+  getPlatformSettingsAsync().catch(() => {});
+
   return inMemorySettingsCache;
 }
 
 /**
- * Saves updated platform settings with multi-target storage resilience:
- * 1. Tries persistent filesystem (VPS / Node / Bun).
- * 2. If running on read-only edge/serverless (Cloudflare / Lambda), caches in-memory safely.
- * 3. If UPSTASH_REDIS_REST_URL is configured, syncs to cloud KV in the background.
+ * Saves updated platform settings to SQLite via Drizzle ORM and mirror files.
+ */
+export async function savePlatformSettingsAsync(
+  newSettings: Partial<PlatformSettings>
+): Promise<PlatformSettings> {
+  await ensureDbInitialized();
+
+  const current = await getPlatformSettingsAsync();
+  const updated: PlatformSettings = {
+    ...current,
+    ...newSettings,
+  };
+
+  inMemorySettingsCache = updated;
+
+  try {
+    await db
+      .insert(platformSettingsTable)
+      .values({
+        id: "default",
+        settingsJson: JSON.stringify(updated),
+        updatedAt: new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: platformSettingsTable.id,
+        set: {
+          settingsJson: JSON.stringify(updated),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+  } catch (err) {
+    console.error("Failed to persist settings to SQLite:", err);
+  }
+
+  // Mirror to file for offline dev/recovery
+  try {
+    const configDir = path.dirname(CONFIG_FILE_PATH);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    fs.writeFileSync(
+      CONFIG_FILE_PATH,
+      JSON.stringify(updated, null, 2),
+      "utf-8"
+    );
+  } catch {
+    // Ignore in read-only environments
+  }
+
+  return updated;
+}
+
+/**
+ * Synchronous compatibility wrapper for savePlatformSettings.
  */
 export function savePlatformSettings(
   newSettings: Partial<PlatformSettings>
@@ -128,43 +230,11 @@ export function savePlatformSettings(
     ...current,
     ...newSettings,
   };
-
-  // Always update in-memory cache immediately
   inMemorySettingsCache = updated;
 
-  // 1. Try persistent filesystem (VPS / local container)
-  try {
-    if (typeof fs !== "undefined" && fs.writeFileSync) {
-      const configDir = path.dirname(CONFIG_FILE_PATH);
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
-      fs.writeFileSync(
-        CONFIG_FILE_PATH,
-        JSON.stringify(updated, null, 2),
-        "utf-8"
-      );
-    }
-  } catch (err) {
-    console.warn(
-      "Notice: Filesystem is read-only (Cloudflare / Serverless). Settings updated in edge memory.",
-      err
-    );
-  }
-
-  // 2. Cloud KV sync (Optional Upstash Redis REST API - works at Edge with zero libraries)
-  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (redisUrl && redisToken) {
-    fetch(`${redisUrl}/set/platform_settings`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${redisToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updated),
-    }).catch((kvErr) => console.error("Cloud KV sync failed:", kvErr));
-  }
+  savePlatformSettingsAsync(newSettings).catch((err) => {
+    console.error("Background SQLite save error:", err);
+  });
 
   return updated;
 }

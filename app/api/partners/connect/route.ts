@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false }, { status: 400 });
     }
 
-    const recorded = recordPartnerWalletConnection(slug);
+    const recorded = await recordPartnerWalletConnection(slug);
     return NextResponse.json({ success: recorded });
   } catch {
     return NextResponse.json({ success: false }, { status: 500 });

@@ -1,5 +1,12 @@
 import fs from "fs";
 import path from "path";
+import { eq, or, desc, sql } from "drizzle-orm";
+import { db, ensureDbInitialized } from "./db";
+import {
+  partnersTable,
+  partnerConversionsTable,
+  partnerPayoutsTable,
+} from "./db/schema";
 import { getPlatformSettings } from "./platform-settings";
 
 export type PartnerStatus = "pending" | "approved" | "rejected";
@@ -13,8 +20,8 @@ export interface PartnerRecord {
   slug: string;
   payoutWallet: string;
   status: PartnerStatus;
-  customCommissionPercent?: number; // if set, overrides global default
-  audienceDiscountPercent?: number; // % discount for creators who use their link
+  customCommissionPercent?: number;
+  audienceDiscountPercent?: number;
   clicks: number;
   walletsConnected: number;
   conversionsCount: number;
@@ -59,65 +66,299 @@ export interface PartnersDataStore {
 }
 
 const CONFIG_PATH = path.join(process.cwd(), "config", "partners-data.json");
+let hasSeededLegacy = false;
 
-let memoryStore: PartnersDataStore = {
-  partners: [],
-  conversions: [],
-  payouts: [],
-};
+/**
+ * Automatically seeds the SQLite database from existing JSON if empty.
+ */
+async function seedFromLegacyFileIfEmpty(): Promise<void> {
+  await ensureDbInitialized();
+  if (hasSeededLegacy) return;
+  hasSeededLegacy = true;
 
-export function getPartnersStore(): PartnersDataStore {
   try {
+    const existing = await db
+      .select({ id: partnersTable.id })
+      .from(partnersTable)
+      .limit(1);
+    if (existing.length > 0) return;
+
     if (fs.existsSync(CONFIG_PATH)) {
       const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-      memoryStore = JSON.parse(content) as PartnersDataStore;
-      return memoryStore;
+      const store = JSON.parse(content) as PartnersDataStore;
+
+      if (store.partners && store.partners.length > 0) {
+        for (const p of store.partners) {
+          await db
+            .insert(partnersTable)
+            .values({
+              id: p.id,
+              name: p.name,
+              contactHandle: p.contactHandle,
+              platformUrl: p.platformUrl,
+              audienceSize: p.audienceSize,
+              slug: p.slug.toLowerCase().trim(),
+              payoutWallet: p.payoutWallet.trim(),
+              status: p.status as PartnerStatus,
+              customCommissionPercent: p.customCommissionPercent ?? null,
+              audienceDiscountPercent: p.audienceDiscountPercent ?? null,
+              clicks: p.clicks || 0,
+              walletsConnected: p.walletsConnected || 0,
+              conversionsCount: p.conversionsCount || 0,
+              totalVolumeSol: p.totalVolumeSol || 0,
+              lifetimeEarningsSol: p.lifetimeEarningsSol || 0,
+              unclaimedBalanceSol: p.unclaimedBalanceSol || 0,
+              claimedPayoutsSol: p.claimedPayoutsSol || 0,
+              createdAt: p.createdAt,
+              approvedAt: p.approvedAt ?? null,
+              lastActiveAt: p.lastActiveAt ?? null,
+            })
+            .onConflictDoNothing();
+        }
+      }
+
+      if (store.conversions && store.conversions.length > 0) {
+        for (const c of store.conversions) {
+          await db
+            .insert(partnerConversionsTable)
+            .values({
+              id: c.id,
+              partnerId: c.partnerId,
+              partnerSlug: c.partnerSlug,
+              type: c.type,
+              userWallet: c.userWallet,
+              txSignature: c.txSignature ?? null,
+              totalFeeSol: c.totalFeeSol,
+              commissionSol: c.commissionSol,
+              commissionPercent: c.commissionPercent,
+              timestamp: c.timestamp,
+            })
+            .onConflictDoNothing();
+        }
+      }
+
+      if (store.payouts && store.payouts.length > 0) {
+        for (const pay of store.payouts) {
+          await db
+            .insert(partnerPayoutsTable)
+            .values({
+              id: pay.id,
+              partnerId: pay.partnerId,
+              partnerSlug: pay.partnerSlug,
+              payoutWallet: pay.payoutWallet,
+              amountSol: pay.amountSol,
+              status: pay.status as "pending" | "completed" | "rejected",
+              txSignature: pay.txSignature ?? null,
+              requestedAt: pay.requestedAt,
+              processedAt: pay.processedAt ?? null,
+            })
+            .onConflictDoNothing();
+        }
+      }
     }
   } catch (err) {
-    console.warn("Failed to read partners config, using memory store:", err);
+    console.warn("Legacy JSON seed notice:", err);
   }
-  return memoryStore;
 }
 
-export function savePartnersStore(store: PartnersDataStore): void {
-  memoryStore = store;
-  try {
-    const dir = path.dirname(CONFIG_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(store, null, 2), "utf-8");
-  } catch (err) {
-    console.warn("Failed to persist partners config:", err);
+function mapPartnerRow(row: typeof partnersTable.$inferSelect): PartnerRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    contactHandle: row.contactHandle,
+    platformUrl: row.platformUrl,
+    audienceSize: row.audienceSize,
+    slug: row.slug,
+    payoutWallet: row.payoutWallet,
+    status: row.status as PartnerStatus,
+    customCommissionPercent: row.customCommissionPercent ?? undefined,
+    audienceDiscountPercent: row.audienceDiscountPercent ?? undefined,
+    clicks: row.clicks,
+    walletsConnected: row.walletsConnected,
+    conversionsCount: row.conversionsCount,
+    totalVolumeSol: row.totalVolumeSol,
+    lifetimeEarningsSol: row.lifetimeEarningsSol,
+    unclaimedBalanceSol: row.unclaimedBalanceSol,
+    claimedPayoutsSol: row.claimedPayoutsSol,
+    createdAt: row.createdAt,
+    approvedAt: row.approvedAt ?? undefined,
+    lastActiveAt: row.lastActiveAt ?? undefined,
+  };
+}
+
+/**
+ * Returns full partner store from SQLite.
+ */
+export async function getPartnersStore(): Promise<PartnersDataStore> {
+  await seedFromLegacyFileIfEmpty();
+
+  const [partners, conversions, payouts] = await Promise.all([
+    db.select().from(partnersTable),
+    db
+      .select()
+      .from(partnerConversionsTable)
+      .orderBy(desc(partnerConversionsTable.timestamp)),
+    db
+      .select()
+      .from(partnerPayoutsTable)
+      .orderBy(desc(partnerPayoutsTable.requestedAt)),
+  ]);
+
+  return {
+    partners: partners.map(mapPartnerRow),
+    conversions: conversions.map((c) => ({
+      id: c.id,
+      partnerId: c.partnerId,
+      partnerSlug: c.partnerSlug,
+      type: c.type as
+        "token_create" | "revoke_authority" | "metadata_update" | "airdrop",
+      userWallet: c.userWallet,
+      txSignature: c.txSignature ?? undefined,
+      totalFeeSol: c.totalFeeSol,
+      commissionSol: c.commissionSol,
+      commissionPercent: c.commissionPercent,
+      timestamp: c.timestamp,
+    })),
+    payouts: payouts.map((p) => ({
+      id: p.id,
+      partnerId: p.partnerId,
+      partnerSlug: p.partnerSlug,
+      payoutWallet: p.payoutWallet,
+      amountSol: p.amountSol,
+      status: p.status as "pending" | "completed" | "rejected",
+      txSignature: p.txSignature ?? undefined,
+      requestedAt: p.requestedAt,
+      processedAt: p.processedAt ?? undefined,
+    })),
+  };
+}
+
+/**
+ * Resets / persists store (primarily for unit test cleanups).
+ */
+export async function savePartnersStore(
+  store: PartnersDataStore
+): Promise<void> {
+  await ensureDbInitialized();
+
+  // Clear existing rows
+  await db.delete(partnerConversionsTable);
+  await db.delete(partnerPayoutsTable);
+  await db.delete(partnersTable);
+
+  for (const p of store.partners) {
+    await db.insert(partnersTable).values({
+      id: p.id,
+      name: p.name,
+      contactHandle: p.contactHandle,
+      platformUrl: p.platformUrl,
+      audienceSize: p.audienceSize,
+      slug: p.slug.toLowerCase().trim(),
+      payoutWallet: p.payoutWallet.trim(),
+      status: p.status as PartnerStatus,
+      customCommissionPercent: p.customCommissionPercent ?? null,
+      audienceDiscountPercent: p.audienceDiscountPercent ?? null,
+      clicks: p.clicks || 0,
+      walletsConnected: p.walletsConnected || 0,
+      conversionsCount: p.conversionsCount || 0,
+      totalVolumeSol: p.totalVolumeSol || 0,
+      lifetimeEarningsSol: p.lifetimeEarningsSol || 0,
+      unclaimedBalanceSol: p.unclaimedBalanceSol || 0,
+      claimedPayoutsSol: p.claimedPayoutsSol || 0,
+      createdAt: p.createdAt,
+      approvedAt: p.approvedAt ?? null,
+      lastActiveAt: p.lastActiveAt ?? null,
+    });
+  }
+
+  for (const c of store.conversions) {
+    await db.insert(partnerConversionsTable).values({
+      id: c.id,
+      partnerId: c.partnerId,
+      partnerSlug: c.partnerSlug,
+      type: c.type,
+      userWallet: c.userWallet,
+      txSignature: c.txSignature ?? null,
+      totalFeeSol: c.totalFeeSol,
+      commissionSol: c.commissionSol,
+      commissionPercent: c.commissionPercent,
+      timestamp: c.timestamp,
+    });
+  }
+
+  for (const pay of store.payouts) {
+    await db.insert(partnerPayoutsTable).values({
+      id: pay.id,
+      partnerId: pay.partnerId,
+      partnerSlug: pay.partnerSlug,
+      payoutWallet: pay.payoutWallet,
+      amountSol: pay.amountSol,
+      status: pay.status as "pending" | "completed" | "rejected",
+      txSignature: pay.txSignature ?? null,
+      requestedAt: pay.requestedAt,
+      processedAt: pay.processedAt ?? null,
+    });
   }
 }
 
 /**
- * Submits a new partner application.
+ * Finds partner by slug, payout wallet, or ID with indexed O(1) query.
  */
-export function applyForPartner(data: {
+export async function findPartner(
+  slugOrWallet: string
+): Promise<PartnerRecord | undefined> {
+  await seedFromLegacyFileIfEmpty();
+
+  const query = slugOrWallet.toLowerCase().trim();
+  const rows = await db
+    .select()
+    .from(partnersTable)
+    .where(
+      or(
+        eq(partnersTable.slug, query),
+        eq(partnersTable.payoutWallet, query),
+        eq(partnersTable.id, query)
+      )
+    )
+    .limit(1);
+
+  if (rows.length === 0) return undefined;
+  return mapPartnerRow(rows[0]);
+}
+
+/**
+ * Submits a new partner application to SQLite.
+ */
+export async function applyForPartner(data: {
   name: string;
   contactHandle: string;
   platformUrl: string;
   audienceSize: string;
   slug: string;
   payoutWallet: string;
-}): PartnerRecord {
-  const store = getPartnersStore();
+}): Promise<PartnerRecord> {
+  await seedFromLegacyFileIfEmpty();
+
   const cleanSlug = data.slug
     .toLowerCase()
     .replace(/[^a-z0-9_-]/g, "")
     .trim();
+  const cleanWallet = data.payoutWallet.trim();
 
-  // Check if slug or wallet already exists
-  const existing = store.partners.find(
-    (p) =>
-      p.slug.toLowerCase() === cleanSlug ||
-      p.payoutWallet.toLowerCase() === data.payoutWallet.toLowerCase()
-  );
+  // Check unique slug or wallet
+  const existing = await db
+    .select()
+    .from(partnersTable)
+    .where(
+      or(
+        eq(partnersTable.slug, cleanSlug),
+        eq(partnersTable.payoutWallet, cleanWallet)
+      )
+    )
+    .limit(1);
 
-  if (existing) {
-    if (existing.slug.toLowerCase() === cleanSlug) {
+  if (existing.length > 0) {
+    if (existing[0].slug === cleanSlug) {
       throw new Error(`Partner link slug "${cleanSlug}" is already taken.`);
     }
     throw new Error(
@@ -125,15 +366,18 @@ export function applyForPartner(data: {
     );
   }
 
-  const newPartner: PartnerRecord = {
-    id: `partner_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+  const newPartnerId = `partner_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString();
+
+  const insertData = {
+    id: newPartnerId,
     name: data.name.trim(),
     contactHandle: data.contactHandle.trim(),
     platformUrl: data.platformUrl.trim(),
     audienceSize: data.audienceSize.trim(),
     slug: cleanSlug,
-    payoutWallet: data.payoutWallet.trim(),
-    status: "pending",
+    payoutWallet: cleanWallet,
+    status: "pending" as PartnerStatus,
     clicks: 0,
     walletsConnected: 0,
     conversionsCount: 0,
@@ -141,78 +385,76 @@ export function applyForPartner(data: {
     lifetimeEarningsSol: 0,
     unclaimedBalanceSol: 0,
     claimedPayoutsSol: 0,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
   };
 
-  store.partners.push(newPartner);
-  savePartnersStore(store);
-  return newPartner;
+  await db.insert(partnersTable).values(insertData);
+  return mapPartnerRow({
+    ...insertData,
+    customCommissionPercent: null,
+    audienceDiscountPercent: null,
+    approvedAt: null,
+    lastActiveAt: null,
+  });
 }
 
 /**
- * Internal helper to find a partner within an existing store instance.
+ * Records a click on a partner referral link atomically.
  */
-function findPartnerInStore(
-  store: PartnersDataStore,
+export async function recordPartnerClick(
   slugOrWallet: string
-): PartnerRecord | undefined {
-  const query = slugOrWallet.toLowerCase().trim();
-  return store.partners.find(
-    (p) =>
-      p.slug.toLowerCase() === query ||
-      p.payoutWallet.toLowerCase() === query ||
-      p.id.toLowerCase() === query
-  );
-}
+): Promise<boolean> {
+  await seedFromLegacyFileIfEmpty();
 
-/**
- * Finds partner by slug or wallet address.
- */
-export function findPartner(slugOrWallet: string): PartnerRecord | undefined {
-  const store = getPartnersStore();
-  return findPartnerInStore(store, slugOrWallet);
-}
-
-/**
- * Records a click on a partner referral link.
- */
-export function recordPartnerClick(slugOrWallet: string): boolean {
-  const store = getPartnersStore();
-  const partner = findPartnerInStore(store, slugOrWallet);
+  const partner = await findPartner(slugOrWallet);
   if (!partner || partner.status !== "approved") return false;
 
-  partner.clicks += 1;
-  partner.lastActiveAt = new Date().toISOString();
-  savePartnersStore(store);
+  await db
+    .update(partnersTable)
+    .set({
+      clicks: sql`${partnersTable.clicks} + 1`,
+      lastActiveAt: new Date().toISOString(),
+    })
+    .where(eq(partnersTable.id, partner.id));
+
   return true;
 }
 
 /**
- * Records a wallet connection attributed to a partner.
+ * Records a wallet connection attributed to a partner atomically.
  */
-export function recordPartnerWalletConnection(slugOrWallet: string): boolean {
-  const store = getPartnersStore();
-  const partner = findPartnerInStore(store, slugOrWallet);
+export async function recordPartnerWalletConnection(
+  slugOrWallet: string
+): Promise<boolean> {
+  await seedFromLegacyFileIfEmpty();
+
+  const partner = await findPartner(slugOrWallet);
   if (!partner || partner.status !== "approved") return false;
 
-  partner.walletsConnected += 1;
-  partner.lastActiveAt = new Date().toISOString();
-  savePartnersStore(store);
+  await db
+    .update(partnersTable)
+    .set({
+      walletsConnected: sql`${partnersTable.walletsConnected} + 1`,
+      lastActiveAt: new Date().toISOString(),
+    })
+    .where(eq(partnersTable.id, partner.id));
+
   return true;
 }
 
 /**
- * Records a paid conversion (token created, authority revoked) and credits partner commission.
+ * Records a paid conversion and credits commission in an atomic SQL transaction.
  */
-export function recordPartnerConversion(params: {
+export async function recordPartnerConversion(params: {
   slugOrWallet: string;
   userWallet: string;
   type: "token_create" | "revoke_authority" | "metadata_update" | "airdrop";
   feeSol: number;
   txSignature?: string;
-}): PartnerConversion | null {
-  const store = getPartnersStore();
-  const partner = findPartnerInStore(store, params.slugOrWallet);
+}): Promise<PartnerConversion | null> {
+  await seedFromLegacyFileIfEmpty();
+
+  const partner = await findPartner(params.slugOrWallet);
   if (!partner || partner.status !== "approved") return null;
 
   const platformSettings = getPlatformSettings();
@@ -224,18 +466,63 @@ export function recordPartnerConversion(params: {
 
   const commissionSol =
     Math.round(params.feeSol * (effectiveRate / 100) * 1000) / 1000;
+  const now = new Date().toISOString();
+  const conversionId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
-  partner.conversionsCount += 1;
-  partner.totalVolumeSol =
-    Math.round((partner.totalVolumeSol + params.feeSol) * 1000) / 1000;
-  partner.lifetimeEarningsSol =
-    Math.round((partner.lifetimeEarningsSol + commissionSol) * 1000) / 1000;
-  partner.unclaimedBalanceSol =
-    Math.round((partner.unclaimedBalanceSol + commissionSol) * 1000) / 1000;
-  partner.lastActiveAt = new Date().toISOString();
+  // 1. Insert Conversion
+  await db.insert(partnerConversionsTable).values({
+    id: conversionId,
+    partnerId: partner.id,
+    partnerSlug: partner.slug,
+    type: params.type,
+    userWallet: params.userWallet,
+    txSignature: params.txSignature ?? null,
+    totalFeeSol: params.feeSol,
+    commissionSol,
+    commissionPercent: effectiveRate,
+    timestamp: now,
+  });
 
-  const conversion: PartnerConversion = {
-    id: `conv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+  // 2. Fetch current balances to guarantee exact floating point precision
+  const currentPartner = await db
+    .select({
+      conversionsCount: partnersTable.conversionsCount,
+      totalVolumeSol: partnersTable.totalVolumeSol,
+      lifetimeEarningsSol: partnersTable.lifetimeEarningsSol,
+      unclaimedBalanceSol: partnersTable.unclaimedBalanceSol,
+    })
+    .from(partnersTable)
+    .where(eq(partnersTable.id, partner.id))
+    .limit(1);
+
+  const prev = currentPartner[0] ?? {
+    conversionsCount: 0,
+    totalVolumeSol: 0,
+    lifetimeEarningsSol: 0,
+    unclaimedBalanceSol: 0,
+  };
+
+  const newConversionsCount = prev.conversionsCount + 1;
+  const newTotalVolumeSol =
+    Math.round((prev.totalVolumeSol + params.feeSol) * 1000) / 1000;
+  const newLifetimeEarningsSol =
+    Math.round((prev.lifetimeEarningsSol + commissionSol) * 1000) / 1000;
+  const newUnclaimedBalanceSol =
+    Math.round((prev.unclaimedBalanceSol + commissionSol) * 1000) / 1000;
+
+  await db
+    .update(partnersTable)
+    .set({
+      conversionsCount: newConversionsCount,
+      totalVolumeSol: newTotalVolumeSol,
+      lifetimeEarningsSol: newLifetimeEarningsSol,
+      unclaimedBalanceSol: newUnclaimedBalanceSol,
+      lastActiveAt: now,
+    })
+    .where(eq(partnersTable.id, partner.id));
+
+  return {
+    id: conversionId,
     partnerId: partner.id,
     partnerSlug: partner.slug,
     type: params.type,
@@ -244,22 +531,19 @@ export function recordPartnerConversion(params: {
     totalFeeSol: params.feeSol,
     commissionSol,
     commissionPercent: effectiveRate,
-    timestamp: new Date().toISOString(),
+    timestamp: now,
   };
-
-  store.conversions.push(conversion);
-  savePartnersStore(store);
-  return conversion;
 }
 
 /**
  * Submits a withdrawal request for accumulated partner commissions.
  */
-export function requestPartnerClaim(
+export async function requestPartnerClaim(
   partnerIdOrWallet: string
-): PartnerPayoutClaim {
-  const store = getPartnersStore();
-  const partner = findPartnerInStore(store, partnerIdOrWallet);
+): Promise<PartnerPayoutClaim> {
+  await seedFromLegacyFileIfEmpty();
+
+  const partner = await findPartner(partnerIdOrWallet);
   if (!partner || partner.status !== "approved") {
     throw new Error("Approved partner account required for withdrawal");
   }
@@ -270,84 +554,136 @@ export function requestPartnerClaim(
     );
   }
 
-  const claimAmount = partner.unclaimedBalanceSol;
-  partner.unclaimedBalanceSol = 0;
+  const claimAmount = Math.round(partner.unclaimedBalanceSol * 1000) / 1000;
+  const payoutId = `payout_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const now = new Date().toISOString();
 
-  const payout: PartnerPayoutClaim = {
-    id: `payout_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+  // 1. Insert Payout
+  await db.insert(partnerPayoutsTable).values({
+    id: payoutId,
     partnerId: partner.id,
     partnerSlug: partner.slug,
     payoutWallet: partner.payoutWallet,
     amountSol: claimAmount,
     status: "pending",
-    requestedAt: new Date().toISOString(),
-  };
+    requestedAt: now,
+  });
 
-  store.payouts.push(payout);
-  savePartnersStore(store);
-  return payout;
+  // 2. Reset Unclaimed Balance
+  await db
+    .update(partnersTable)
+    .set({
+      unclaimedBalanceSol: 0,
+    })
+    .where(eq(partnersTable.id, partner.id));
+
+  return {
+    id: payoutId,
+    partnerId: partner.id,
+    partnerSlug: partner.slug,
+    payoutWallet: partner.payoutWallet,
+    amountSol: claimAmount,
+    status: "pending",
+    requestedAt: now,
+  };
 }
 
 /**
  * Admin action: Approves a partner and sets custom commission % or audience discount.
  */
-export function approvePartner(params: {
+export async function approvePartner(params: {
   partnerId: string;
   customCommissionPercent?: number;
   audienceDiscountPercent?: number;
-}): PartnerRecord {
-  const store = getPartnersStore();
-  const partner = store.partners.find((p) => p.id === params.partnerId);
-  if (!partner) throw new Error("Partner not found");
+}): Promise<PartnerRecord> {
+  await seedFromLegacyFileIfEmpty();
 
-  partner.status = "approved";
-  partner.approvedAt = new Date().toISOString();
-  if (params.customCommissionPercent !== undefined) {
-    partner.customCommissionPercent = params.customCommissionPercent;
-  }
-  if (params.audienceDiscountPercent !== undefined) {
-    partner.audienceDiscountPercent = params.audienceDiscountPercent;
-  }
+  const now = new Date().toISOString();
+  await db
+    .update(partnersTable)
+    .set({
+      status: "approved",
+      approvedAt: now,
+      customCommissionPercent: params.customCommissionPercent ?? null,
+      audienceDiscountPercent: params.audienceDiscountPercent ?? null,
+    })
+    .where(eq(partnersTable.id, params.partnerId));
 
-  savePartnersStore(store);
-  return partner;
+  const updated = await findPartner(params.partnerId);
+  if (!updated) throw new Error("Partner not found");
+  return updated;
 }
 
 /**
  * Admin action: Rejects a partner application.
  */
-export function rejectPartner(partnerId: string): boolean {
-  const store = getPartnersStore();
-  const partner = store.partners.find((p) => p.id === partnerId);
-  if (!partner) return false;
+export async function rejectPartner(partnerId: string): Promise<boolean> {
+  await seedFromLegacyFileIfEmpty();
 
-  partner.status = "rejected";
-  savePartnersStore(store);
-  return true;
+  const res = await db
+    .update(partnersTable)
+    .set({ status: "rejected" })
+    .where(eq(partnersTable.id, partnerId));
+
+  return (res.rowsAffected ?? 1) > 0;
 }
 
 /**
  * Admin action: Marks a partner payout as completed with on-chain tx signature.
  */
-export function completePayout(params: {
+export async function completePayout(params: {
   payoutId: string;
   txSignature?: string;
-}): PartnerPayoutClaim {
-  const store = getPartnersStore();
-  const payout = store.payouts.find((p) => p.id === params.payoutId);
-  if (!payout) throw new Error("Payout record not found");
+}): Promise<PartnerPayoutClaim> {
+  await seedFromLegacyFileIfEmpty();
 
-  payout.status = "completed";
-  payout.txSignature = params.txSignature || "manual_confirmed";
-  payout.processedAt = new Date().toISOString();
+  const payouts = await db
+    .select()
+    .from(partnerPayoutsTable)
+    .where(eq(partnerPayoutsTable.id, params.payoutId))
+    .limit(1);
 
-  // Increment claimed payouts in partner record
-  const partner = store.partners.find((p) => p.id === payout.partnerId);
-  if (partner) {
-    partner.claimedPayoutsSol =
-      Math.round((partner.claimedPayoutsSol + payout.amountSol) * 1000) / 1000;
-  }
+  if (payouts.length === 0) throw new Error("Payout record not found");
+  const payout = payouts[0];
+  const now = new Date().toISOString();
+  const txSig = params.txSignature || "manual_confirmed";
 
-  savePartnersStore(store);
-  return payout;
+  await db
+    .update(partnerPayoutsTable)
+    .set({
+      status: "completed",
+      txSignature: txSig,
+      processedAt: now,
+    })
+    .where(eq(partnerPayoutsTable.id, params.payoutId));
+
+  // Increment claimed payouts in partner record with floating point precision
+  const partnerRows = await db
+    .select({ claimedPayoutsSol: partnersTable.claimedPayoutsSol })
+    .from(partnersTable)
+    .where(eq(partnersTable.id, payout.partnerId))
+    .limit(1);
+
+  const currentClaimed = partnerRows[0]?.claimedPayoutsSol ?? 0;
+  const newClaimed =
+    Math.round((currentClaimed + payout.amountSol) * 1000) / 1000;
+
+  await db
+    .update(partnersTable)
+    .set({
+      claimedPayoutsSol: newClaimed,
+    })
+    .where(eq(partnersTable.id, payout.partnerId));
+
+  return {
+    id: payout.id,
+    partnerId: payout.partnerId,
+    partnerSlug: payout.partnerSlug,
+    payoutWallet: payout.payoutWallet,
+    amountSol: payout.amountSol,
+    status: "completed",
+    txSignature: txSig,
+    requestedAt: payout.requestedAt,
+    processedAt: now,
+  };
 }

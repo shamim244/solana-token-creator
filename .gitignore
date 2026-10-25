@@ -48,3 +48,11 @@ id.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# sqlite database files
+/data/
+*.db
+*.db-wal
+*.db-shm
+drizzle/

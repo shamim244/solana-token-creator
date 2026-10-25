@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const store = getPartnersStore();
+  const store = await getPartnersStore();
   return NextResponse.json({ success: true, store });
 }
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const action = body.action;
 
     if (action === "approve") {
-      const updated = approvePartner({
+      const updated = await approvePartner({
         partnerId: body.partnerId,
         customCommissionPercent:
           body.customCommissionPercent !== undefined
@@ -57,12 +57,12 @@ export async function POST(req: Request) {
     }
 
     if (action === "reject") {
-      const ok = rejectPartner(body.partnerId);
+      const ok = await rejectPartner(body.partnerId);
       return NextResponse.json({ success: ok });
     }
 
     if (action === "complete_payout") {
-      const payout = completePayout({
+      const payout = await completePayout({
         payoutId: body.payoutId,
         txSignature: body.txSignature,
       });

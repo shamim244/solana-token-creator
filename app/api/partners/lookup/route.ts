@@ -16,7 +16,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const partner = findPartner(wallet || slug || "");
+    const partner = await findPartner(wallet || slug || "");
 
     if (!partner) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     }
 
     // If query is by wallet (partner viewing their private dashboard):
-    const store = getPartnersStore();
+    const store = await getPartnersStore();
     const partnerConversions = store.conversions
       .filter((c) => c.partnerId === partner.id)
       .slice(-20)

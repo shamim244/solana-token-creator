@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const payout = requestPartnerClaim(wallet);
+    const payout = await requestPartnerClaim(wallet);
     return NextResponse.json({ success: true, payout });
   } catch (err: unknown) {
     return NextResponse.json(

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const conversion = recordPartnerConversion({
+    const conversion = await recordPartnerConversion({
       slugOrWallet,
       userWallet,
       type: type || "token_create",
