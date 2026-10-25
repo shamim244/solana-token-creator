@@ -1,0 +1,24 @@
+{
+  "partners": [
+    {
+      "id": "partner_1792921525613_nm1ji",
+      "name": "Spam Submitter",
+      "contactHandle": "@spammer",
+      "platformUrl": "https://spam.xyz",
+      "audienceSize": "0",
+      "slug": "spam",
+      "payoutWallet": "SpamWallet11111111111111111111111111111111",
+      "status": "rejected",
+      "clicks": 0,
+      "walletsConnected": 0,
+      "conversionsCount": 0,
+      "totalVolumeSol": 0,
+      "lifetimeEarningsSol": 0,
+      "unclaimedBalanceSol": 0,
+      "claimedPayoutsSol": 0,
+      "createdAt": "2026-10-25T09:45:25.613Z"
+    }
+  ],
+  "conversions": [],
+  "payouts": []
+}

@@ -69,6 +69,14 @@ export function AppFooter() {
                   href="/"
                   className="hover:text-foreground transition-colors"
                 >
+                  Batch Multi-Sender / Airdrop
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/"
+                  className="hover:text-foreground transition-colors"
+                >
                   Authority Revoker
                 </Link>
               </li>
@@ -105,6 +113,23 @@ export function AppFooter() {
               Company & Docs
             </h4>
             <ul className="space-y-2 text-xs text-muted-foreground">
+              <li>
+                <Link
+                  href="/partners"
+                  className="hover:text-amber-400 font-medium text-amber-400/90 transition-colors flex items-center gap-1.5"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-400" />
+                  Partner & Affiliate Program
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/partners/dashboard"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Partner Dashboard
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/about"

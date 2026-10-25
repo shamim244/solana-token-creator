@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { usePlatformSettings } from "../../../lib/hooks/use-platform-settings";
+import { usePartnerAttribution } from "../../../lib/hooks/use-partner-attribution";
 
 interface StepReviewProps {
   data: {
@@ -43,6 +45,8 @@ export function StepReview({
 }: StepReviewProps) {
   const isMainnet = cluster === "mainnet";
   const { settings } = usePlatformSettings();
+  const { partnerSlug, partnerName, discountPercent, isPartnerAttributed } =
+    usePartnerAttribution();
 
   const networkRentSol = 0.009; // Exact Solana on-chain rent for Mint + ATA + Metaplex metadata
   const isAbsorbed = settings.absorbNetworkRent ?? true;
@@ -58,15 +62,25 @@ export function StepReview({
   if (data.revokeMint) serviceFeeTotal += settings.revokeMintFeeSol;
   if (data.revokeUpdate) serviceFeeTotal += settings.revokeUpdateFeeSol;
 
+  // Calculate Partner Discount if applicable
+  const hasDiscount = isPartnerAttributed && discountPercent > 0;
+  const discountMultiplier = hasDiscount
+    ? Math.max(0, (100 - discountPercent) / 100)
+    : 1;
+  const discountedServiceFee =
+    Math.round(serviceFeeTotal * discountMultiplier * 1000) / 1000;
+  const discountSavingsSol =
+    Math.round((serviceFeeTotal - discountedServiceFee) * 1000) / 1000;
+
   // Strategy A (All-Inclusive): Total wallet prompt is exact flat fee, platform absorbs rent
   // Strategy B (Rent On Top): Total wallet prompt is service fee + Solana network rent
   const totalWalletOutflow = isAbsorbed
-    ? Math.max(serviceFeeTotal, networkRentSol)
-    : serviceFeeTotal + networkRentSol;
+    ? Math.max(discountedServiceFee, networkRentSol)
+    : discountedServiceFee + networkRentSol;
 
   const platformNetFee = isAbsorbed
-    ? Math.max(0, serviceFeeTotal - networkRentSol)
-    : serviceFeeTotal;
+    ? Math.max(0, discountedServiceFee - networkRentSol)
+    : discountedServiceFee;
 
   const displayTotal =
     totalWalletOutflow > 0 ? `${totalWalletOutflow.toFixed(3)} SOL` : "Free";
@@ -155,6 +169,29 @@ export function StepReview({
         </div>
       </div>
 
+      {/* VIP Partner Discount Banner */}
+      {hasDiscount && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground">
+                VIP Partner Discount Applied ({partnerName || partnerSlug})
+              </span>
+              <p className="text-[11px] text-muted-foreground">
+                You receive {discountPercent}% off platform creation fees
+                courtesy of our verified partner.
+              </p>
+            </div>
+          </div>
+          <span className="font-mono font-bold text-emerald-400">
+            -{discountSavingsSol.toFixed(3)} SOL
+          </span>
+        </div>
+      )}
+
       {/* Transparent Cost Breakdown */}
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2 text-xs">
         <div className="flex items-center justify-between font-semibold text-foreground">
@@ -206,6 +243,15 @@ export function StepReview({
               <span>↳ Revoke Update (Immutable Metadata)</span>
               <span className="font-mono text-foreground">
                 +{settings.revokeUpdateFeeSol.toFixed(3)} SOL
+              </span>
+            </div>
+          )}
+
+          {hasDiscount && (
+            <div className="flex justify-between text-emerald-400 font-semibold pl-2">
+              <span>↳ Partner Special ({discountPercent}% Off)</span>
+              <span className="font-mono">
+                -{discountSavingsSol.toFixed(3)} SOL
               </span>
             </div>
           )}

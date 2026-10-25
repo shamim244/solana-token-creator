@@ -66,6 +66,7 @@ export interface CreateTokenParams {
   revokeMintFeeSol?: number;
   revokeUpdateFeeSol?: number;
   absorbNetworkRent?: boolean;
+  discountPercent?: number;
 }
 
 export interface CreateTokenResult {
@@ -278,6 +279,16 @@ export async function createAndDeployToken(
     if (params.revokeFreeze) allInclusiveTotalSol += freezeFee;
     if (params.revokeMint) allInclusiveTotalSol += mintFee;
     if (params.revokeUpdate) allInclusiveTotalSol += updateFee;
+
+    // Apply partner / promotional discount if applicable
+    if (params.discountPercent && params.discountPercent > 0) {
+      const discountMultiplier = Math.max(
+        0,
+        (100 - params.discountPercent) / 100
+      );
+      allInclusiveTotalSol =
+        Math.round(allInclusiveTotalSol * discountMultiplier * 1000) / 1000;
+    }
 
     const allInclusiveLamports = BigInt(Math.round(allInclusiveTotalSol * 1e9));
 

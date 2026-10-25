@@ -13,6 +13,7 @@ import { TokenPreviewCard } from "../preview/token-preview-card";
 import { createAndDeployToken } from "../../lib/solana-token-creator";
 import { compressTokenImage } from "../../lib/image-compressor";
 import { usePlatformSettings } from "../../lib/hooks/use-platform-settings";
+import { usePartnerAttribution } from "../../lib/hooks/use-partner-attribution";
 import { toast } from "sonner";
 import { Check, ChevronRight } from "lucide-react";
 
@@ -64,6 +65,8 @@ export function TokenWizard() {
   const connected = useConnectedWallet(client);
   const { cluster, getExplorerUrl } = useCluster();
   const { settings } = usePlatformSettings();
+  const { partnerSlug, discountPercent, recordConversion } =
+    usePartnerAttribution(connected?.account.address);
 
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<TokenWizardState>(INITIAL_STATE);
@@ -162,6 +165,11 @@ export function TokenWizard() {
         id: toastId,
       });
 
+      const baseFee =
+        cluster === "mainnet"
+          ? settings.mainnetBaseFeeSol
+          : settings.devnetBaseFeeSol;
+
       const result = await createAndDeployToken(
         client,
         connected.signer,
@@ -169,17 +177,37 @@ export function TokenWizard() {
           ...formData,
           metadataUri: finalMetadataUri,
           treasuryWallet: settings.treasuryWalletAddress,
-          baseFeeSol:
-            cluster === "mainnet"
-              ? settings.mainnetBaseFeeSol
-              : settings.devnetBaseFeeSol,
+          baseFeeSol: baseFee,
           revokeFreezeFeeSol: settings.revokeFreezeFeeSol,
           revokeMintFeeSol: settings.revokeMintFeeSol,
           revokeUpdateFeeSol: settings.revokeUpdateFeeSol,
           absorbNetworkRent: settings.absorbNetworkRent,
+          discountPercent: discountPercent > 0 ? discountPercent : undefined,
         },
         cluster
       );
+
+      // Log partner attribution conversion if visitor originated from partner link
+      if (partnerSlug && connected?.account.address) {
+        let nominalFee = baseFee;
+        if (formData.revokeFreeze) nominalFee += settings.revokeFreezeFeeSol;
+        if (formData.revokeMint) nominalFee += settings.revokeMintFeeSol;
+        if (formData.revokeUpdate) nominalFee += settings.revokeUpdateFeeSol;
+        if (discountPercent > 0) {
+          nominalFee =
+            Math.round(nominalFee * ((100 - discountPercent) / 100) * 1000) /
+            1000;
+        }
+
+        recordConversion({
+          type: "token_create",
+          userWallet: connected.account.address,
+          feeSol: nominalFee,
+          txSignature: result.txSignature,
+        }).catch((e) =>
+          console.warn("Failed to record partner conversion:", e)
+        );
+      }
 
       toast.success("Token deployed successfully!", { id: toastId });
       setDeployedResult({

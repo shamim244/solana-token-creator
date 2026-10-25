@@ -28,15 +28,23 @@ import {
   Percent,
   CheckCircle2,
   TrendingUp,
+  Users,
+  Check,
+  X,
+  UserCheck,
+  Sparkles,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { PlatformSettings } from "../lib/platform-settings";
+import type { PartnersDataStore } from "../lib/partner-service";
 
 type AdminSection =
   | "overview"
   | "monetization"
   | "infrastructure"
   | "marketing"
+  | "partners"
   | "general"
   | "tokens"
   | "diagnostics";
@@ -84,12 +92,156 @@ export default function AdminPage() {
     tiers?: Record<string, { status: string; description?: string }>;
   } | null>(null);
 
+  // Partner Management State
+  const [partnersStore, setPartnersStore] = useState<PartnersDataStore | null>(
+    null
+  );
+  const [isPartnersLoading, setIsPartnersLoading] = useState(false);
+  const [activePartnersTab, setActivePartnersTab] = useState<
+    "pending" | "approved" | "payouts" | "conversions"
+  >("pending");
+  const [partnerRates, setPartnerRates] = useState<
+    Record<string, { commission: string; discount: string }>
+  >({});
+  const [payoutTxInputs, setPayoutTxInputs] = useState<Record<string, string>>(
+    {}
+  );
+  const [processingPartnerId, setProcessingPartnerId] = useState<string | null>(
+    null
+  );
+
+  const fetchPartnersStore = async (token?: string) => {
+    const adminToken =
+      token || sessionStorage.getItem("admin_auth_token") || password;
+    if (!adminToken) return;
+    setIsPartnersLoading(true);
+    try {
+      const res = await fetch("/api/admin/partners", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.store) {
+          setPartnersStore(data.store);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load partner records:", err);
+    } finally {
+      setIsPartnersLoading(false);
+    }
+  };
+
+  const handleApprovePartner = async (partnerId: string) => {
+    const adminToken = sessionStorage.getItem("admin_auth_token") || password;
+    setProcessingPartnerId(partnerId);
+    try {
+      const customRate = partnerRates[partnerId]?.commission;
+      const customDisc = partnerRates[partnerId]?.discount;
+
+      const res = await fetch("/api/admin/partners", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          action: "approve",
+          partnerId,
+          customCommissionPercent:
+            customRate !== undefined && customRate !== ""
+              ? parseFloat(customRate)
+              : undefined,
+          audienceDiscountPercent:
+            customDisc !== undefined && customDisc !== ""
+              ? parseFloat(customDisc)
+              : undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Partner application approved!");
+        await fetchPartnersStore(adminToken);
+      } else {
+        toast.error(data.error || "Failed to approve partner");
+      }
+    } catch {
+      toast.error("Network error approving partner");
+    } finally {
+      setProcessingPartnerId(null);
+    }
+  };
+
+  const handleRejectPartner = async (partnerId: string) => {
+    const adminToken = sessionStorage.getItem("admin_auth_token") || password;
+    setProcessingPartnerId(partnerId);
+    try {
+      const res = await fetch("/api/admin/partners", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ action: "reject", partnerId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.info("Partner application rejected");
+        await fetchPartnersStore(adminToken);
+      } else {
+        toast.error(data.error || "Failed to reject partner");
+      }
+    } catch {
+      toast.error("Network error rejecting partner");
+    } finally {
+      setProcessingPartnerId(null);
+    }
+  };
+
+  const handleCompletePayout = async (payoutId: string) => {
+    const adminToken = sessionStorage.getItem("admin_auth_token") || password;
+    setProcessingPartnerId(payoutId);
+    try {
+      const txSig = payoutTxInputs[payoutId]?.trim() || "confirmed_manual_tx";
+      const res = await fetch("/api/admin/partners", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          action: "complete_payout",
+          payoutId,
+          txSignature: txSig,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Payout marked as completed!");
+        setPayoutTxInputs((prev) => {
+          const next = { ...prev };
+          delete next[payoutId];
+          return next;
+        });
+        await fetchPartnersStore(adminToken);
+      } else {
+        toast.error(data.error || "Failed to complete payout");
+      }
+    } catch {
+      toast.error("Network error updating payout");
+    } finally {
+      setProcessingPartnerId(null);
+    }
+  };
+
   const loadSettings = async (token: string) => {
     const [settingsRes, diagRes] = await Promise.all([
       fetch("/api/admin/settings", {
         headers: { Authorization: `Bearer ${token}` },
       }),
       fetch("/api/upload-metadata/status"),
+      fetchPartnersStore(token),
     ]);
 
     if (!settingsRes.ok) {
@@ -340,7 +492,34 @@ export default function AdminPage() {
               }`}
             >
               <Flame className="h-4 w-4" />
-              Promos & Affiliates
+              Promos & Discounts
+            </button>
+            <button
+              onClick={() => setActiveSection("partners")}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeSection === "partners"
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Users className="h-4 w-4" />
+                Partners & VIPs
+              </div>
+              {(partnersStore?.partners.filter((p) => p.status === "pending")
+                .length || 0) +
+                (partnersStore?.payouts.filter((p) => p.status === "pending")
+                  .length || 0) >
+                0 && (
+                <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-bold text-slate-950">
+                  {(partnersStore?.partners.filter(
+                    (p) => p.status === "pending"
+                  ).length || 0) +
+                    (partnersStore?.payouts.filter(
+                      (p) => p.status === "pending"
+                    ).length || 0)}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveSection("general")}
@@ -1195,6 +1374,696 @@ export default function AdminPage() {
                   </span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* SECTION: PARTNERS & AFFILIATES */}
+          {activeSection === "partners" && (
+            <div className="space-y-6 max-w-5xl">
+              {/* Partner Overview & KPI Header */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Active VIP Partners
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold font-mono text-foreground">
+                      {partnersStore?.partners.filter(
+                        (p) => p.status === "approved"
+                      ).length || 0}
+                    </span>
+                    <Users className="h-4 w-4 text-amber-400" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Total Volume Driven
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold font-mono text-emerald-400">
+                      {(
+                        partnersStore?.partners
+                          .filter((p) => p.status === "approved")
+                          .reduce((s, p) => s + (p.totalVolumeSol || 0), 0) || 0
+                      ).toFixed(2)}{" "}
+                      <span className="text-xs">SOL</span>
+                    </span>
+                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Unclaimed Commissions
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold font-mono text-amber-400">
+                      {(
+                        partnersStore?.partners
+                          .filter((p) => p.status === "approved")
+                          .reduce(
+                            (s, p) => s + (p.unclaimedBalanceSol || 0),
+                            0
+                          ) || 0
+                      ).toFixed(2)}{" "}
+                      <span className="text-xs">SOL</span>
+                    </span>
+                    <Coins className="h-4 w-4 text-amber-400" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Pending Claims
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold font-mono text-sky-400">
+                      {partnersStore?.payouts.filter(
+                        (p) => p.status === "pending"
+                      ).length || 0}
+                    </span>
+                    <CreditCard className="h-4 w-4 text-sky-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-Tabs Navigation */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setActivePartnersTab("pending")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activePartnersTab === "pending"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span>Applications</span>
+                    {(partnersStore?.partners.filter(
+                      (p) => p.status === "pending"
+                    ).length || 0) > 0 && (
+                      <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-bold text-slate-950">
+                        {
+                          partnersStore?.partners.filter(
+                            (p) => p.status === "pending"
+                          ).length
+                        }
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setActivePartnersTab("approved")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activePartnersTab === "approved"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span>Active Partners</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      (
+                      {partnersStore?.partners.filter(
+                        (p) => p.status === "approved"
+                      ).length || 0}
+                      )
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePartnersTab("payouts")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activePartnersTab === "payouts"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span>Payout Claims</span>
+                    {(partnersStore?.payouts.filter(
+                      (p) => p.status === "pending"
+                    ).length || 0) > 0 && (
+                      <span className="rounded-full bg-sky-500 px-1.5 py-0.2 text-[9px] font-bold text-slate-950">
+                        {
+                          partnersStore?.payouts.filter(
+                            (p) => p.status === "pending"
+                          ).length
+                        }
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setActivePartnersTab("conversions")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activePartnersTab === "conversions"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span>Conversions Ledger</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      ({partnersStore?.conversions.length || 0})
+                    </span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/partners"
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border/60 hover:bg-secondary/40 transition-colors"
+                  >
+                    Public Apply Page <ExternalLink className="h-3 w-3" />
+                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isPartnersLoading}
+                    onClick={() => fetchPartnersStore()}
+                    className="gap-1.5 text-xs h-7"
+                  >
+                    <RefreshCw
+                      className={`h-3 w-3 ${
+                        isPartnersLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Sub-Tab 1: Pending Applications */}
+              {activePartnersTab === "pending" && (
+                <div className="space-y-4">
+                  {partnersStore?.partners.filter((p) => p.status === "pending")
+                    .length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
+                      <UserCheck className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                      <h3 className="text-xs font-semibold text-foreground">
+                        No Pending Partner Applications
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                        When creators or influencers submit applications via the
+                        public Partner Program page, they will appear here for
+                        custom rate review and 1-click approval.
+                      </p>
+                    </div>
+                  ) : (
+                    partnersStore?.partners
+                      .filter((p) => p.status === "pending")
+                      .map((partner) => (
+                        <div
+                          key={partner.id}
+                          className="rounded-xl border border-border/80 bg-card/60 p-5 space-y-4 shadow-sm"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-foreground">
+                                  {partner.name}
+                                </h3>
+                                <Badge
+                                  variant="warning"
+                                  className="text-[9px] py-0"
+                                >
+                                  Pending Review
+                                </Badge>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground">
+                                Applied:{" "}
+                                {new Date(
+                                  partner.createdAt
+                                ).toLocaleDateString()}{" "}
+                                &bull; Contact: {partner.contactHandle}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 font-mono text-xs">
+                              <span className="text-muted-foreground">
+                                Desired Slug:
+                              </span>
+                              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-semibold">
+                                ?partner={partner.slug}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div className="rounded-lg border border-border/50 bg-background/50 p-2.5 space-y-0.5">
+                              <span className="text-[10px] text-muted-foreground block">
+                                Platform / Channel
+                              </span>
+                              <a
+                                href={partner.platformUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-amber-400 hover:underline inline-flex items-center gap-1 font-medium truncate max-w-full"
+                              >
+                                {partner.platformUrl}{" "}
+                                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                              </a>
+                            </div>
+
+                            <div className="rounded-lg border border-border/50 bg-background/50 p-2.5 space-y-0.5">
+                              <span className="text-[10px] text-muted-foreground block">
+                                Audience Reach
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {partner.audienceSize} followers/subscribers
+                              </span>
+                            </div>
+
+                            <div className="rounded-lg border border-border/50 bg-background/50 p-2.5 space-y-0.5">
+                              <span className="text-[10px] text-muted-foreground block">
+                                Solana Payout Wallet
+                              </span>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-mono text-muted-foreground truncate text-[11px]">
+                                  {partner.payoutWallet.slice(0, 6)}...
+                                  {partner.payoutWallet.slice(-6)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(
+                                      partner.payoutWallet
+                                    );
+                                    toast.success("Wallet address copied!");
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground p-0.5"
+                                  title="Copy address"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Approval Override Inputs */}
+                          <div className="rounded-lg border border-border/60 bg-secondary/30 p-3.5 space-y-3">
+                            <div className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                              Negotiated Terms for {partner.name}:
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-medium text-muted-foreground flex justify-between">
+                                  <span>Partner Commission Share (%)</span>
+                                  <span className="text-amber-400 font-mono">
+                                    Default:{" "}
+                                    {settings.referralFeeSharePercent || 20}%
+                                  </span>
+                                </label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="90"
+                                  placeholder={`e.g. ${
+                                    settings.referralFeeSharePercent || 20
+                                  }`}
+                                  value={
+                                    partnerRates[partner.id]?.commission ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    setPartnerRates((prev) => ({
+                                      ...prev,
+                                      [partner.id]: {
+                                        commission: e.target.value,
+                                        discount:
+                                          prev[partner.id]?.discount ?? "",
+                                      },
+                                    }))
+                                  }
+                                  className="h-8 text-xs font-mono"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-medium text-muted-foreground flex justify-between">
+                                  <span>Audience Discount (%)</span>
+                                  <span className="text-emerald-400 font-mono">
+                                    Special Promo
+                                  </span>
+                                </label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="50"
+                                  placeholder="e.g. 10 (gives their users 10% off)"
+                                  value={
+                                    partnerRates[partner.id]?.discount ?? ""
+                                  }
+                                  onChange={(e) =>
+                                    setPartnerRates((prev) => ({
+                                      ...prev,
+                                      [partner.id]: {
+                                        commission:
+                                          prev[partner.id]?.commission ?? "",
+                                        discount: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="h-8 text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={processingPartnerId === partner.id}
+                              onClick={() => handleRejectPartner(partner.id)}
+                              className="text-xs text-destructive hover:bg-destructive/10 h-8 gap-1"
+                            >
+                              <X className="h-3 w-3" />
+                              Reject
+                            </Button>
+                            <Button
+                              variant="amber"
+                              size="sm"
+                              disabled={processingPartnerId === partner.id}
+                              onClick={() => handleApprovePartner(partner.id)}
+                              className="text-xs font-bold h-8 gap-1"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              {processingPartnerId === partner.id
+                                ? "Approving..."
+                                : "Approve & Activate Partner"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 2: Active & Approved Partners */}
+              {activePartnersTab === "approved" && (
+                <div className="space-y-4">
+                  {partnersStore?.partners.filter(
+                    (p) => p.status === "approved"
+                  ).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
+                      <Users className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                      <h3 className="text-xs font-semibold text-foreground">
+                        No Active Partners Yet
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                        Once you approve incoming partner applications, their
+                        live performance analytics, custom rates, and payout
+                        balances will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border/80 bg-card/60 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="border-b border-border/60 text-muted-foreground text-[10px] uppercase tracking-wider bg-background/50">
+                              <th className="py-2.5 px-3">Partner & Slug</th>
+                              <th className="py-2.5 px-3">Rates</th>
+                              <th className="py-2.5 px-3">Traffic & Joins</th>
+                              <th className="py-2.5 px-3">Conversions</th>
+                              <th className="py-2.5 px-3">Volume Driven</th>
+                              <th className="py-2.5 px-3">Unclaimed SOL</th>
+                              <th className="py-2.5 px-3 text-right">
+                                Public Link
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40 font-mono text-[11px]">
+                            {partnersStore?.partners
+                              .filter((p) => p.status === "approved")
+                              .map((p) => (
+                                <tr
+                                  key={p.id}
+                                  className="hover:bg-secondary/30 transition-colors"
+                                >
+                                  <td className="py-3 px-3 font-sans">
+                                    <div className="font-bold text-foreground">
+                                      {p.name}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground font-mono">
+                                      ?partner={p.slug}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <div className="text-amber-400 font-bold">
+                                      {p.customCommissionPercent ??
+                                        settings.referralFeeSharePercent ??
+                                        20}
+                                      % commission
+                                    </div>
+                                    <div className="text-[10px] text-emerald-400">
+                                      {p.audienceDiscountPercent
+                                        ? `${p.audienceDiscountPercent}% user discount`
+                                        : "0% user discount"}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className="text-foreground font-semibold">
+                                      {p.clicks}
+                                    </span>{" "}
+                                    clicks &bull;{" "}
+                                    <span className="text-sky-400">
+                                      {p.walletsConnected}
+                                    </span>{" "}
+                                    wallets
+                                  </td>
+                                  <td className="py-3 px-3 text-emerald-400 font-bold">
+                                    {p.conversionsCount} sales
+                                  </td>
+                                  <td className="py-3 px-3 font-semibold text-foreground">
+                                    {p.totalVolumeSol.toFixed(3)} SOL
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-amber-400">
+                                    {p.unclaimedBalanceSol.toFixed(3)} SOL
+                                  </td>
+                                  <td className="py-3 px-3 text-right font-sans">
+                                    <a
+                                      href={`/?partner=${p.slug}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-amber-400 hover:underline inline-flex items-center gap-1 text-xs"
+                                    >
+                                      Test Link{" "}
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 3: Payout Claims */}
+              {activePartnersTab === "payouts" && (
+                <div className="space-y-4">
+                  {partnersStore?.payouts.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
+                      <CreditCard className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                      <h3 className="text-xs font-semibold text-foreground">
+                        No Withdrawal Requests
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                        When partners request withdrawal from their private
+                        dashboard (minimum 0.05 SOL), payout records will appear
+                        here for transfer and confirmation.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {partnersStore?.payouts.map((payout) => (
+                        <div
+                          key={payout.id}
+                          className="rounded-xl border border-border/80 bg-card/60 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-foreground">
+                                {payout.partnerSlug}
+                              </span>
+                              <Badge
+                                variant={
+                                  payout.status === "completed"
+                                    ? "success"
+                                    : "warning"
+                                }
+                                className="text-[9px]"
+                              >
+                                {payout.status.toUpperCase()}
+                              </Badge>
+                              <span className="font-mono text-xs font-bold text-amber-400">
+                                {payout.amountSol.toFixed(3)} SOL
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span>
+                                Requested:{" "}
+                                {new Date(payout.requestedAt).toLocaleString()}
+                              </span>
+                              <span>&bull;</span>
+                              <span className="font-mono">
+                                Wallet: {payout.payoutWallet.slice(0, 8)}...
+                                {payout.payoutWallet.slice(-8)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    payout.payoutWallet
+                                  );
+                                  toast.success("Wallet address copied!");
+                                }}
+                                className="text-muted-foreground hover:text-foreground"
+                                title="Copy full address"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {payout.status === "pending" ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                placeholder="Solana Tx Signature (optional)"
+                                value={payoutTxInputs[payout.id] || ""}
+                                onChange={(e) =>
+                                  setPayoutTxInputs((prev) => ({
+                                    ...prev,
+                                    [payout.id]: e.target.value,
+                                  }))
+                                }
+                                className="h-8 text-xs font-mono w-48"
+                              />
+                              <Button
+                                variant="amber"
+                                size="sm"
+                                disabled={processingPartnerId === payout.id}
+                                onClick={() => handleCompletePayout(payout.id)}
+                                className="text-xs font-bold h-8 shrink-0"
+                              >
+                                {processingPartnerId === payout.id
+                                  ? "Saving..."
+                                  : "Mark Paid"}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-right text-[11px] text-muted-foreground font-mono">
+                              <span className="text-emerald-400 block font-semibold">
+                                ✓ Paid on{" "}
+                                {payout.processedAt
+                                  ? new Date(
+                                      payout.processedAt
+                                    ).toLocaleDateString()
+                                  : "Confirmed"}
+                              </span>
+                              {payout.txSignature && (
+                                <span className="text-[10px] text-muted-foreground/70 truncate block max-w-xs">
+                                  Tx: {payout.txSignature}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 4: Conversions Ledger */}
+              {activePartnersTab === "conversions" && (
+                <div className="space-y-4">
+                  {partnersStore?.conversions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
+                      <FileText className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                      <h3 className="text-xs font-semibold text-foreground">
+                        No Conversions Recorded Yet
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                        When users launch tokens or utilize post-launch
+                        utilities using a partner link, transactions will be
+                        logged here in real-time.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border/80 bg-card/60 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="border-b border-border/60 text-muted-foreground text-[10px] uppercase tracking-wider bg-background/50">
+                              <th className="py-2.5 px-3">Timestamp</th>
+                              <th className="py-2.5 px-3">Partner Slug</th>
+                              <th className="py-2.5 px-3">Action Type</th>
+                              <th className="py-2.5 px-3">Customer Wallet</th>
+                              <th className="py-2.5 px-3">Fee Paid</th>
+                              <th className="py-2.5 px-3">
+                                Partner Commission
+                              </th>
+                              <th className="py-2.5 px-3 text-right">
+                                Tx Signature
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40 font-mono text-[11px]">
+                            {partnersStore?.conversions
+                              .slice()
+                              .reverse()
+                              .map((c) => (
+                                <tr
+                                  key={c.id}
+                                  className="hover:bg-secondary/30 transition-colors"
+                                >
+                                  <td className="py-2.5 px-3 text-muted-foreground">
+                                    {new Date(c.timestamp).toLocaleString()}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-amber-400 font-bold">
+                                    {c.partnerSlug}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-sans capitalize text-foreground">
+                                    {c.type.replace(/_/g, " ")}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-muted-foreground">
+                                    {c.userWallet.slice(0, 4)}...
+                                    {c.userWallet.slice(-4)}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-foreground font-semibold">
+                                    {c.totalFeeSol.toFixed(3)} SOL
+                                  </td>
+                                  <td className="py-2.5 px-3 text-emerald-400 font-bold">
+                                    +{c.commissionSol.toFixed(3)} SOL (
+                                    {c.commissionPercent}%)
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right">
+                                    {c.txSignature ? (
+                                      <span className="text-[10px] text-muted-foreground truncate">
+                                        {c.txSignature.slice(0, 8)}...
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground/60">
+                                        &mdash;
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
