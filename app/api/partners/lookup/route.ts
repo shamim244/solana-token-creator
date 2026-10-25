@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { findPartner, getPartnersStore } from "../../../lib/partner-service";
+import {
+  findPartner,
+  getPartnersStore,
+  getPartnerRates,
+  getOrCreateWalletReferrer,
+} from "../../../lib/partner-service";
+import { getPlatformSettings } from "../../../lib/platform-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -7,32 +13,43 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const wallet = searchParams.get("wallet");
-    const slug = searchParams.get("slug");
+    const slug = searchParams.get("slug") || searchParams.get("code");
 
     if (!wallet && !slug) {
       return NextResponse.json(
-        { success: false, error: "Provide wallet or slug parameter." },
+        { success: false, error: "Provide wallet, slug, or code parameter." },
         { status: 400 }
       );
     }
 
-    const partner = await findPartner(wallet || slug || "");
+    const queryKey = (wallet || slug || "").trim();
+    let partner = await findPartner(queryKey);
+
+    // If not found and input looks like a valid Solana address, auto-register as general referrer
+    if (!partner && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(queryKey)) {
+      partner = await getOrCreateWalletReferrer(queryKey);
+    }
 
     if (!partner) {
       return NextResponse.json(
-        { success: false, error: "Partner not found." },
+        { success: false, error: "Invalid discount or referral code." },
         { status: 404 }
       );
     }
 
-    // If query is by slug (public creator landing on site via partner link):
+    const settings = getPlatformSettings();
+    const rates = getPartnerRates(partner, settings);
+
+    // If query is by slug / code (public user redeeming code):
     if (slug && !wallet) {
       return NextResponse.json({
         success: true,
         partner: {
           slug: partner.slug,
           name: partner.name,
-          audienceDiscountPercent: partner.audienceDiscountPercent || 0,
+          tier: rates.tier,
+          audienceDiscountPercent: rates.audienceDiscountPercent,
+          commissionPercent: rates.commissionPercent,
           status: partner.status,
         },
       });
@@ -52,7 +69,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      partner,
+      partner: {
+        ...partner,
+        tier: rates.tier,
+        effectiveCommissionPercent: rates.commissionPercent,
+        effectiveAudienceDiscountPercent: rates.audienceDiscountPercent,
+      },
+      rates,
       conversions: partnerConversions,
       payouts: partnerPayouts,
     });

@@ -73,8 +73,11 @@ export default function AdminPage() {
     promoBannerActive: false,
     promoBannerText:
       "⚡ Launch Week Special: 20% Off All Authority Revocations!",
-    referralProgramActive: false,
-    referralFeeSharePercent: 20,
+    referralProgramActive: true,
+    referralFeeSharePercent: 15,
+    referralDiscountPercent: 5,
+    partnerFeeSharePercent: 30,
+    partnerDiscountPercent: 10,
     platformTitle: "Solana Token Studio",
     platformTagline: "SPL & Token-2022 Launchpad",
     supportTelegram: "https://t.me/solanatokenstudio",
@@ -1353,25 +1356,106 @@ export default function AdminPage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Affiliate Commission Split (%)
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={settings.referralFeeSharePercent}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        referralFeeSharePercent: parseInt(e.target.value) || 20,
-                      })
-                    }
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    Percentage of base fee routed to referrer
-                  </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/40">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>General Referrer Commission (%)</span>
+                      <span className="text-amber-400 font-mono text-[11px]">
+                        Promoter gets
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={settings.referralFeeSharePercent ?? 15}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          referralFeeSharePercent:
+                            parseInt(e.target.value) || 15,
+                        })
+                      }
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Fee share for standard community referrers
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>General Referrer Buyer Discount (%)</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">
+                        Buyer saves
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={settings.referralDiscountPercent ?? 5}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          referralDiscountPercent:
+                            parseInt(e.target.value) || 5,
+                        })
+                      }
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Discount granted to users using a standard referral code
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>VIP Partner Default Commission (%)</span>
+                      <span className="text-amber-400 font-mono text-[11px]">
+                        Partner gets
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="80"
+                      value={settings.partnerFeeSharePercent ?? 30}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          partnerFeeSharePercent:
+                            parseInt(e.target.value) || 30,
+                        })
+                      }
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Starting commission for approved VIP creators
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>VIP Partner Default Buyer Discount (%)</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">
+                        Audience saves
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={settings.partnerDiscountPercent ?? 10}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          partnerDiscountPercent:
+                            parseInt(e.target.value) || 10,
+                        })
+                      }
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Starting discount granted to VIP partner communities
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

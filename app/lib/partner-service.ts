@@ -7,7 +7,10 @@ import {
   partnerConversionsTable,
   partnerPayoutsTable,
 } from "./db/schema";
-import { getPlatformSettings } from "./platform-settings";
+import {
+  getPlatformSettings,
+  type PlatformSettings,
+} from "./platform-settings";
 
 export type PartnerStatus = "pending" | "approved" | "rejected";
 
@@ -20,6 +23,7 @@ export interface PartnerRecord {
   slug: string;
   payoutWallet: string;
   status: PartnerStatus;
+  tier?: "referrer" | "partner";
   customCommissionPercent?: number;
   audienceDiscountPercent?: number;
   clicks: number;
@@ -171,6 +175,7 @@ function mapPartnerRow(row: typeof partnersTable.$inferSelect): PartnerRecord {
     slug: row.slug,
     payoutWallet: row.payoutWallet,
     status: row.status as PartnerStatus,
+    tier: (row.tier as "referrer" | "partner") || "partner",
     customCommissionPercent: row.customCommissionPercent ?? undefined,
     audienceDiscountPercent: row.audienceDiscountPercent ?? undefined,
     clicks: row.clicks,
@@ -183,6 +188,53 @@ function mapPartnerRow(row: typeof partnersTable.$inferSelect): PartnerRecord {
     createdAt: row.createdAt,
     approvedAt: row.approvedAt ?? undefined,
     lastActiveAt: row.lastActiveAt ?? undefined,
+  };
+}
+
+/**
+ * Calculates effective commission rate and audience discount based on partner tier and platform settings.
+ */
+export function getPartnerRates(
+  partner: PartnerRecord,
+  platformSettings: PlatformSettings
+): {
+  commissionPercent: number;
+  audienceDiscountPercent: number;
+  tier: "partner" | "referrer";
+} {
+  const tier: "partner" | "referrer" =
+    partner.tier || (partner.status === "approved" ? "partner" : "referrer");
+
+  // 1. Commission Resolution
+  let commissionPercent: number;
+  if (
+    partner.customCommissionPercent !== undefined &&
+    partner.customCommissionPercent !== null
+  ) {
+    commissionPercent = partner.customCommissionPercent;
+  } else if (tier === "partner") {
+    commissionPercent = platformSettings.partnerFeeSharePercent || 30;
+  } else {
+    commissionPercent = platformSettings.referralFeeSharePercent || 15;
+  }
+
+  // 2. Audience Discount Resolution
+  let audienceDiscountPercent: number;
+  if (
+    partner.audienceDiscountPercent !== undefined &&
+    partner.audienceDiscountPercent !== null
+  ) {
+    audienceDiscountPercent = partner.audienceDiscountPercent;
+  } else if (tier === "partner") {
+    audienceDiscountPercent = platformSettings.partnerDiscountPercent || 10;
+  } else {
+    audienceDiscountPercent = platformSettings.referralDiscountPercent || 5;
+  }
+
+  return {
+    commissionPercent,
+    audienceDiscountPercent,
+    tier,
   };
 }
 
@@ -378,6 +430,7 @@ export async function applyForPartner(data: {
     slug: cleanSlug,
     payoutWallet: cleanWallet,
     status: "pending" as PartnerStatus,
+    tier: "partner" as const,
     clicks: 0,
     walletsConnected: 0,
     conversionsCount: 0,
@@ -407,7 +460,7 @@ export async function recordPartnerClick(
   await seedFromLegacyFileIfEmpty();
 
   const partner = await findPartner(slugOrWallet);
-  if (!partner || partner.status !== "approved") return false;
+  if (!partner || partner.status === "rejected") return false;
 
   await db
     .update(partnersTable)
@@ -429,7 +482,7 @@ export async function recordPartnerWalletConnection(
   await seedFromLegacyFileIfEmpty();
 
   const partner = await findPartner(slugOrWallet);
-  if (!partner || partner.status !== "approved") return false;
+  if (!partner || partner.status === "rejected") return false;
 
   await db
     .update(partnersTable)
@@ -455,14 +508,11 @@ export async function recordPartnerConversion(params: {
   await seedFromLegacyFileIfEmpty();
 
   const partner = await findPartner(params.slugOrWallet);
-  if (!partner || partner.status !== "approved") return null;
+  if (!partner || partner.status === "rejected") return null;
 
   const platformSettings = getPlatformSettings();
-  const defaultRate = platformSettings.referralFeeSharePercent || 20;
-  const effectiveRate =
-    partner.customCommissionPercent !== undefined
-      ? partner.customCommissionPercent
-      : defaultRate;
+  const rates = getPartnerRates(partner, platformSettings);
+  const effectiveRate = rates.commissionPercent;
 
   const commissionSol =
     Math.round(params.feeSol * (effectiveRate / 100) * 1000) / 1000;
@@ -686,4 +736,85 @@ export async function completePayout(params: {
     requestedAt: payout.requestedAt,
     processedAt: now,
   };
+}
+
+/**
+ * Admin action: Updates partner tier (partner | referrer) and custom rates.
+ */
+export async function updatePartnerTerms(params: {
+  partnerId: string;
+  tier?: "partner" | "referrer";
+  customCommissionPercent?: number | null;
+  audienceDiscountPercent?: number | null;
+}): Promise<PartnerRecord> {
+  await seedFromLegacyFileIfEmpty();
+
+  const updateFields: Record<string, unknown> = {};
+  if (params.tier !== undefined) updateFields.tier = params.tier;
+  if (params.customCommissionPercent !== undefined) {
+    updateFields.customCommissionPercent = params.customCommissionPercent;
+  }
+  if (params.audienceDiscountPercent !== undefined) {
+    updateFields.audienceDiscountPercent = params.audienceDiscountPercent;
+  }
+
+  await db
+    .update(partnersTable)
+    .set(updateFields)
+    .where(eq(partnersTable.id, params.partnerId));
+
+  const updated = await findPartner(params.partnerId);
+  if (!updated) throw new Error("Partner not found");
+  return updated;
+}
+
+/**
+ * Retrieves or auto-creates a General Referrer account for a Solana wallet.
+ */
+export async function getOrCreateWalletReferrer(
+  walletAddress: string
+): Promise<PartnerRecord> {
+  await seedFromLegacyFileIfEmpty();
+  const cleanWallet = walletAddress.trim();
+  const existing = await findPartner(cleanWallet);
+  if (existing) return existing;
+
+  const baseSlug = cleanWallet.slice(0, 8).toLowerCase();
+  let candidateSlug = baseSlug;
+  let counter = 1;
+  while (await findPartner(candidateSlug)) {
+    candidateSlug = `${baseSlug}${counter++}`;
+  }
+
+  const now = new Date().toISOString();
+  const newId = `ref_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const insertData = {
+    id: newId,
+    name: `Referrer ${cleanWallet.slice(0, 4)}...${cleanWallet.slice(-4)}`,
+    contactHandle: "@referrer",
+    platformUrl: `https://solana.fm/address/${cleanWallet}`,
+    audienceSize: "Personal",
+    slug: candidateSlug,
+    payoutWallet: cleanWallet,
+    status: "approved" as PartnerStatus,
+    tier: "referrer" as const,
+    clicks: 0,
+    walletsConnected: 0,
+    conversionsCount: 0,
+    totalVolumeSol: 0,
+    lifetimeEarningsSol: 0,
+    unclaimedBalanceSol: 0,
+    claimedPayoutsSol: 0,
+    createdAt: now,
+    approvedAt: now,
+  };
+
+  await db.insert(partnersTable).values(insertData);
+  return mapPartnerRow({
+    ...insertData,
+    customCommissionPercent: null,
+    audienceDiscountPercent: null,
+    approvedAt: now,
+    lastActiveAt: null,
+  });
 }

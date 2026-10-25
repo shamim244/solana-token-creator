@@ -92,6 +92,7 @@ export async function ensureDbInitialized(): Promise<void> {
         slug TEXT NOT NULL UNIQUE,
         payout_wallet TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL DEFAULT 'pending',
+        tier TEXT NOT NULL DEFAULT 'partner',
         custom_commission_percent REAL,
         audience_discount_percent REAL,
         clicks INTEGER NOT NULL DEFAULT 0,
@@ -117,6 +118,15 @@ export async function ensureDbInitialized(): Promise<void> {
     await clientInstance.execute(`
       CREATE INDEX IF NOT EXISTS partner_status_idx ON partners(status);
     `);
+
+    // Migration guard: ensure tier column exists in existing SQLite databases
+    try {
+      await clientInstance.execute(
+        `ALTER TABLE partners ADD COLUMN tier TEXT NOT NULL DEFAULT 'partner';`
+      );
+    } catch {
+      // Column already exists
+    }
 
     // Create Partner Conversions table
     await clientInstance.execute(`

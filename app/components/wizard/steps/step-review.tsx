@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
+import { Input } from "../../ui/input";
 import {
   ArrowLeft,
   Rocket,
@@ -9,7 +11,9 @@ import {
   ShieldCheck,
   Loader2,
   Sparkles,
+  Tag,
 } from "lucide-react";
+import { toast } from "sonner";
 import { usePlatformSettings } from "../../../lib/hooks/use-platform-settings";
 import { usePartnerAttribution } from "../../../lib/hooks/use-partner-attribution";
 
@@ -45,8 +49,35 @@ export function StepReview({
 }: StepReviewProps) {
   const isMainnet = cluster === "mainnet";
   const { settings } = usePlatformSettings();
-  const { partnerSlug, partnerName, discountPercent, isPartnerAttributed } =
-    usePartnerAttribution();
+  const {
+    partnerSlug,
+    partnerName,
+    tier,
+    discountPercent,
+    isPartnerAttributed,
+    applyCode,
+    removeCode,
+  } = usePartnerAttribution();
+
+  const [manualCode, setManualCode] = useState("");
+  const [isApplyingCode, setIsApplyingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+
+  const handleApplyCode = async () => {
+    if (!manualCode.trim()) return;
+    setIsApplyingCode(true);
+    setCodeError(null);
+    const res = await applyCode(manualCode);
+    setIsApplyingCode(false);
+    if (!res.success) {
+      setCodeError(res.error || "Code not recognized.");
+    } else {
+      setManualCode("");
+      toast.success(
+        `Code applied! ${res.partner?.discountPercent ?? discountPercent}% discount active.`
+      );
+    }
+  };
 
   const networkRentSol = 0.009; // Exact Solana on-chain rent for Mint + ATA + Metaplex metadata
   const isAbsorbed = settings.absorbNetworkRent ?? true;
@@ -169,26 +200,94 @@ export function StepReview({
         </div>
       </div>
 
-      {/* VIP Partner Discount Banner */}
-      {hasDiscount && (
+      {/* Discount / Referral Code Card */}
+      {hasDiscount ? (
         <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <span className="font-bold text-foreground">
-                VIP Partner Discount Applied ({partnerName || partnerSlug})
+              <span className="font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                {tier === "partner"
+                  ? "🌟 Verified Partner Code Applied"
+                  : "🏷️ Referral Discount Code Applied"}
+                <span className="font-mono text-amber-400 uppercase font-bold">
+                  ({partnerSlug})
+                </span>
               </span>
               <p className="text-[11px] text-muted-foreground">
                 You receive {discountPercent}% off platform creation fees
-                courtesy of our verified partner.
+                courtesy of {partnerName || partnerSlug}.
               </p>
             </div>
           </div>
-          <span className="font-mono font-bold text-emerald-400">
-            -{discountSavingsSol.toFixed(3)} SOL
-          </span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="font-mono font-bold text-emerald-400">
+              -{discountSavingsSol.toFixed(3)} SOL
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={removeCode}
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5 text-amber-400" />
+              Have a Discount or Referral Code?
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              Save up to 15% on deployment fees
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="e.g. BONK or REFERRAL_CODE"
+              value={manualCode}
+              onChange={(e) => {
+                setManualCode(e.target.value);
+                if (codeError) setCodeError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleApplyCode();
+                }
+              }}
+              className="h-8 text-xs font-mono uppercase bg-background"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleApplyCode}
+              disabled={isApplyingCode || !manualCode.trim()}
+              className="h-8 text-xs cursor-pointer shrink-0"
+            >
+              {isApplyingCode ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  Verifying...
+                </>
+              ) : (
+                "Apply Code"
+              )}
+            </Button>
+          </div>
+          {codeError && (
+            <p className="text-[11px] text-destructive font-medium">
+              {codeError}
+            </p>
+          )}
         </div>
       )}
 
@@ -249,7 +348,11 @@ export function StepReview({
 
           {hasDiscount && (
             <div className="flex justify-between text-emerald-400 font-semibold pl-2">
-              <span>↳ Partner Special ({discountPercent}% Off)</span>
+              <span>
+                ↳{" "}
+                {tier === "partner" ? "Partner Discount" : "Referral Discount"}{" "}
+                ({discountPercent}% Off)
+              </span>
               <span className="font-mono">
                 -{discountSavingsSol.toFixed(3)} SOL
               </span>

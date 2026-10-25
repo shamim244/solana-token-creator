@@ -24,6 +24,9 @@ export interface PlatformSettings {
   promoBannerText: string;
   referralProgramActive: boolean;
   referralFeeSharePercent: number;
+  referralDiscountPercent: number;
+  partnerFeeSharePercent: number;
+  partnerDiscountPercent: number;
 
   // 3. General & Branding
   platformTitle: string;
@@ -59,8 +62,11 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   promoDiscountPercent: 0,
   promoBannerActive: false,
   promoBannerText: "⚡ Launch Week Special: 20% Off All Authority Revocations!",
-  referralProgramActive: false,
-  referralFeeSharePercent: 20,
+  referralProgramActive: true,
+  referralFeeSharePercent: 15,
+  referralDiscountPercent: 5,
+  partnerFeeSharePercent: 30,
+  partnerDiscountPercent: 10,
 
   // General & Branding
   platformTitle: "Solana Token Studio",

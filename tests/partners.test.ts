@@ -10,7 +10,10 @@ import {
   rejectPartner,
   completePayout,
   savePartnersStore,
+  getPartnerRates,
+  getOrCreateWalletReferrer,
 } from "../app/lib/partner-service";
+import { getPlatformSettings } from "../app/lib/platform-settings";
 
 describe("Partner & Affiliate Marketing System (Drizzle SQLite Engine)", () => {
   beforeEach(async () => {
@@ -207,5 +210,51 @@ describe("Partner & Affiliate Marketing System (Drizzle SQLite Engine)", () => {
     // Clicks on rejected partners are ignored
     const clickOk = await recordPartnerClick("spam");
     expect(clickOk).toBe(false);
+  });
+
+  it("correctly resolves dual-tier commissions and discounts for referrers vs VIP partners", async () => {
+    const settings = getPlatformSettings();
+
+    // 1. General Community Referrer
+    const referrer = await getOrCreateWalletReferrer(
+      "CommunityWallet111111111111111111111111111"
+    );
+    expect(referrer.tier).toBe("referrer");
+    const referrerRates = getPartnerRates(referrer, settings);
+    expect(referrerRates.tier).toBe("referrer");
+    expect(referrerRates.commissionPercent).toBe(
+      settings.referralFeeSharePercent
+    ); // 15%
+    expect(referrerRates.audienceDiscountPercent).toBe(
+      settings.referralDiscountPercent
+    ); // 5%
+
+    // 2. VIP Partner (Default Rates)
+    const vipPartner = await applyForPartner({
+      name: "Big YouTuber",
+      contactHandle: "@bigyoutuber",
+      platformUrl: "https://youtube.com/@bigyoutuber",
+      audienceSize: "200k",
+      slug: "bigyoutube",
+      payoutWallet: "YouTuberWallet11111111111111111111111111111",
+    });
+    const approvedVip = await approvePartner({
+      partnerId: vipPartner.id,
+    });
+    const vipRates = getPartnerRates(approvedVip, settings);
+    expect(vipRates.commissionPercent).toBe(settings.partnerFeeSharePercent); // 30%
+    expect(vipRates.audienceDiscountPercent).toBe(
+      settings.partnerDiscountPercent
+    ); // 10%
+
+    // 3. Custom Negotiated VIP Rates
+    const customVip = await approvePartner({
+      partnerId: vipPartner.id,
+      customCommissionPercent: 40,
+      audienceDiscountPercent: 15,
+    });
+    const customRates = getPartnerRates(customVip, settings);
+    expect(customRates.commissionPercent).toBe(40);
+    expect(customRates.audienceDiscountPercent).toBe(15);
   });
 });

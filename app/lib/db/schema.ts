@@ -31,6 +31,9 @@ export const partnersTable = sqliteTable(
     status: text("status", { enum: ["pending", "approved", "rejected"] })
       .notNull()
       .default("pending"),
+    tier: text("tier", { enum: ["referrer", "partner"] })
+      .notNull()
+      .default("partner"),
     customCommissionPercent: real("custom_commission_percent"),
     audienceDiscountPercent: real("audience_discount_percent"),
     clicks: integer("clicks").notNull().default(0),

@@ -17,10 +17,11 @@ import {
   Loader2,
   RefreshCw,
   TrendingUp,
-  AlertCircle,
   Clock,
   ArrowRight,
   ShieldCheck,
+  Tag,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -87,17 +88,53 @@ export default function PartnerDashboardPage() {
     };
   }, [userWallet, loadPartnerData]);
 
+  const [generatingReferrer, setGeneratingReferrer] = useState(false);
+
+  const handleCopyCode = () => {
+    if (!partner) return;
+    navigator.clipboard.writeText(partner.slug.toUpperCase());
+    toast.success(`Copied code "${partner.slug.toUpperCase()}" to clipboard!`);
+  };
+
   const handleCopyLink = () => {
     if (!partner) return;
     const origin =
       typeof window !== "undefined"
         ? window.location.origin
         : "https://yourapp.com";
-    const fullUrl = `${origin}/?partner=${partner.slug}`;
+    const fullUrl = `${origin}/?code=${partner.slug}`;
     navigator.clipboard.writeText(fullUrl);
-    toast.success("Copied partner link to clipboard!", {
+    toast.success("Copied shareable link to clipboard!", {
       description: fullUrl,
     });
+  };
+
+  const handleGenerateReferrer = async () => {
+    if (!userWallet) return;
+    setGeneratingReferrer(true);
+    const toastId = toast.loading("Generating your community referral code...");
+    try {
+      const res = await fetch(
+        `/api/partners/lookup?code=${encodeURIComponent(userWallet)}`
+      );
+      const data = await res.json();
+      if (data.success && data.partner) {
+        toast.success(
+          `Referral code "${data.partner.slug.toUpperCase()}" generated!`,
+          { id: toastId }
+        );
+        await loadPartnerData();
+      } else {
+        throw new Error(data.error || "Failed to generate referral code");
+      }
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create referral code",
+        { id: toastId }
+      );
+    } finally {
+      setGeneratingReferrer(false);
+    }
   };
 
   const handleClaim = async () => {
@@ -192,25 +229,46 @@ export default function PartnerDashboardPage() {
           <span>Verifying partner account on Solana...</span>
         </div>
       ) : notFound ? (
-        <div className="rounded-2xl border border-border/70 bg-card p-8 text-center space-y-4 max-w-lg mx-auto">
-          <AlertCircle className="h-10 w-10 text-amber-400 mx-auto" />
-          <h2 className="text-lg font-bold text-foreground">
-            No Partner Account Found
-          </h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            The connected wallet (
-            <span className="font-mono text-foreground font-semibold">
-              {userWallet.slice(0, 4)}...{userWallet.slice(-4)}
-            </span>
-            ) is not registered as an active partner.
-          </p>
-          <div className="pt-2">
+        <div className="rounded-2xl border border-border/70 bg-card p-8 text-center space-y-5 max-w-lg mx-auto">
+          <Tag className="h-10 w-10 text-amber-400 mx-auto" />
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold text-foreground">
+              Start Earning as a Referrer or Partner
+            </h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The connected wallet (
+              <span className="font-mono text-foreground font-semibold">
+                {userWallet.slice(0, 4)}...{userWallet.slice(-4)}
+              </span>
+              ) does not have an active promo code yet.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Button
+              type="button"
+              onClick={handleGenerateReferrer}
+              disabled={generatingReferrer}
+              className="w-full sm:w-auto text-xs font-semibold cursor-pointer h-9 px-4"
+            >
+              {generatingReferrer ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Generating Code...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5 text-amber-300" />
+                  Instant Referral Code
+                </>
+              )}
+            </Button>
+
             <Link
               href="/partners"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:bg-primary/90 transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-secondary/40 text-foreground px-4 py-2 text-xs font-semibold hover:bg-secondary transition-colors"
             >
-              Apply for Partner Program{" "}
-              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              Apply for VIP Partner <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </Link>
           </div>
         </div>
@@ -221,71 +279,122 @@ export default function PartnerDashboardPage() {
             Application Under Review
           </h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Your application for slug{" "}
-            <code className="text-amber-400 font-mono">
-              ?partner={partner.slug}
+            Your application for code{" "}
+            <code className="text-amber-400 font-mono uppercase">
+              {partner.slug}
             </code>{" "}
             is currently pending review by the platform team. Approvals are
             processed within 24 hours.
           </p>
         </div>
       ) : (
-        /* Approved Partner Workspace */
+        /* Approved Partner / Referrer Workspace */
         <div className="space-y-8">
-          {/* Partner Link Share Box */}
-          <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 p-6 space-y-4">
+          {/* Partner Share Box */}
+          <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[11px] text-muted-foreground uppercase tracking-wider block font-semibold">
-                  Active Partner Account
+                  Active {partner?.tier === "partner" ? "Partner" : "Referral"}{" "}
+                  Account
                 </span>
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                   {partner?.name}
-                  <Badge variant="success" className="text-[10px] py-0 px-2">
-                    Verified VIP Partner
+                  <Badge
+                    variant={partner?.tier === "partner" ? "success" : "info"}
+                    className="text-[10px] py-0 px-2"
+                  >
+                    {partner?.tier === "partner"
+                      ? "🌟 Verified VIP Partner"
+                      : "🏷️ Community Referrer"}
                   </Badge>
                 </h2>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs text-foreground">
-                  Commission:{" "}
+                  Your Commission:{" "}
                   <strong className="text-amber-400 font-mono">
-                    {partner?.customCommissionPercent ?? 20}%
+                    {partner?.customCommissionPercent ??
+                      (partner?.tier === "partner" ? 30 : 15)}
+                    %
                   </strong>
                 </div>
-                {partner?.audienceDiscountPercent ? (
-                  <div className="rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs text-foreground">
-                    Audience Discount:{" "}
-                    <strong className="text-emerald-400 font-mono">
-                      {partner.audienceDiscountPercent}% OFF
-                    </strong>
-                  </div>
-                ) : null}
+                <div className="rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs text-foreground">
+                  Audience Discount:{" "}
+                  <strong className="text-emerald-400 font-mono">
+                    {partner?.audienceDiscountPercent ??
+                      (partner?.tier === "partner" ? 10 : 5)}
+                    % OFF
+                  </strong>
+                </div>
               </div>
             </div>
 
-            {/* Link Copy Bar */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Your Unique Partner Referral Link
-              </label>
-              <div className="flex gap-2">
-                <div className="flex-1 rounded-xl border border-border/80 bg-background/90 px-3.5 py-2 text-xs font-mono text-foreground truncate select-all flex items-center">
-                  {typeof window !== "undefined"
-                    ? `${window.location.origin}/?partner=${partner?.slug}`
-                    : `yourapp.com/?partner=${partner?.slug}`}
+            {/* Code & Link Bars */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-amber-400" />
+                  Your Discount / Promo Code
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl border border-border/80 bg-background/90 px-3.5 py-2 text-xs font-mono font-bold text-amber-400 uppercase tracking-wider truncate select-all flex items-center">
+                    {partner?.slug.toUpperCase()}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleCopyCode}
+                    variant="outline"
+                    className="text-xs font-semibold shrink-0 cursor-pointer h-10 px-3"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" /> Copy Code
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleCopyLink}
-                  variant="default"
-                  className="text-xs font-semibold shrink-0 cursor-pointer h-10 px-4"
-                >
-                  <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link
-                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <ExternalLink className="h-3.5 w-3.5 text-emerald-400" />
+                  Your Direct Share Link
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl border border-border/80 bg-background/90 px-3.5 py-2 text-xs font-mono text-foreground truncate select-all flex items-center">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}/?code=${partner?.slug}`
+                      : `yourapp.com/?code=${partner?.slug}`}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleCopyLink}
+                    variant="default"
+                    className="text-xs font-semibold shrink-0 cursor-pointer h-10 px-4"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Link
+                  </Button>
+                </div>
               </div>
             </div>
+
+            <p className="text-[11px] text-muted-foreground border-t border-border/40 pt-3 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span>
+                <strong>Win-Win Promotion:</strong> Anyone who enters your code
+                or clicks your link saves{" "}
+                <strong className="text-foreground">
+                  {partner?.audienceDiscountPercent ??
+                    (partner?.tier === "partner" ? 10 : 5)}
+                  %
+                </strong>{" "}
+                on deployment fees, while you earn{" "}
+                <strong className="text-foreground">
+                  {partner?.customCommissionPercent ??
+                    (partner?.tier === "partner" ? 30 : 15)}
+                  %
+                </strong>{" "}
+                in direct SOL commissions.
+              </span>
+            </p>
           </div>
 
           {/* Metric Cards Grid */}

@@ -141,13 +141,23 @@ sequenceDiagram
     API->>DB: Deduct balance & create pending partner_payouts record
 ```
 
-### 3.2. Custom Commission Splits & Audience Discounts
-- Each partner can have:
-  - `customCommissionPercent`: Overrides platform default (e.g., 35% for VIP partners vs 25% standard).
-  - `audienceDiscountPercent`: Exclusive discount applied automatically at checkout for that partner's audience (e.g., 10% off token creation fees).
-- Configurable per-partner via the **Admin Control Center**.
+### 3.2. Dual-Tier Model: General Referrer vs. Verified VIP Partner
+The system operates on a dual-tier "give-to-get" model ensuring **both promoters and end-users receive financial benefits**:
 
-### 3.3. Payout Settlement
+| Feature | Tier 1: General Referrer (Standard) | Tier 2: Verified Partner (VIP / Creator) |
+| :--- | :--- | :--- |
+| **Target Audience** | Casual users, community members, developers | Influencers, YouTubers, launchpads, alpha callers |
+| **Code Generation** | Instant 1-click self-serve generation with any wallet | Application on `/partners` approved via `/admin` |
+| **Promoter Commission** | Global standard rate (default: `15%`, set in Admin) | Global starting rate (`30%`) or custom per-partner override |
+| **Buyer / User Discount** | Global standard discount (default: `5%`, set in Admin) | Global starting discount (`10%`) or custom per-partner override |
+| **Checkout UI Badge** | `🏷️ Referral Discount Code Applied (5% Off)` | `🌟 Verified Partner Code Applied (10% Off)` |
+
+### 3.3. Code Resolution & Promo Box Integration
+- **Universal URL Aliases**: Supports `?code=slug`, `?partner=slug`, `?ref=slug`, `?creator=slug`, and `?discount=slug`.
+- **Address Bar Cleanup**: Once attribution is captured, `window.history.replaceState` removes tracking query parameters for clean user UX.
+- **Interactive Promo Input**: The Token Creation Review step (`step-review.tsx`) provides an interactive code input box so users who didn't click a link can manually apply codes (e.g. `BONK`) to unlock fee discounts.
+
+### 3.4. Payout Settlement
 - Partners submit self-serve withdrawal requests when their unclaimed balance exceeds the minimum threshold (default: 0.05 SOL).
 - Admins review pending claims in `/admin`, execute the SOL transfer, paste the transaction signature, and mark the payout as `completed`.
 
