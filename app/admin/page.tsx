@@ -58,6 +58,7 @@ export default function AdminPage() {
     revokeStandaloneFeeSol: 0.05,
     updateMetadataFeeSol: 0.05,
     burnTokenFeeSol: 0.0,
+    airdropFeeSol: 0.01,
     absorbNetworkRent: true,
     treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
     promoDiscountPercent: 0,
@@ -678,7 +679,7 @@ export default function AdminPage() {
                       Fees collected when creators use standalone utilities on
                       existing tokens.
                     </p>
-                    <div className="grid sm:grid-cols-3 gap-3">
+                    <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="space-y-1">
                         <label className="text-[11px] text-muted-foreground">
                           Standalone Revoke Fee
@@ -730,6 +731,24 @@ export default function AdminPage() {
                             setSettings({
                               ...settings,
                               burnTokenFeeSol: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">
+                          Airdrop Fee / Batch
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.005"
+                          min="0"
+                          value={settings.airdropFeeSol ?? 0.01}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              airdropFeeSol: parseFloat(e.target.value) || 0,
                             })
                           }
                           className="text-xs font-mono"

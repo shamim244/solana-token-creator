@@ -6,7 +6,8 @@
   "revokeUpdateFeeSol": 0.1,
   "revokeStandaloneFeeSol": 0.05,
   "updateMetadataFeeSol": 0.05,
-  "burnTokenFeeSol": 0.0,
+  "burnTokenFeeSol": 0,
+  "airdropFeeSol": 0.01,
   "absorbNetworkRent": true,
   "treasuryWalletAddress": "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
   "promoDiscountPercent": 0,
@@ -20,7 +21,7 @@
   "supportTwitter": "https://x.com/solanatokenstudio",
   "supportDiscord": "https://discord.gg/solana",
   "maintenanceMode": false,
-  "mainnetRpcUrl": "https://api.mainnet-beta.solana.com",
-  "devnetRpcUrl": "https://api.devnet.solana.com",
+  "mainnetRpcUrl": "https://mainnet.helius-rpc.com/?api-key=545e35bf-b0a5-4ffa-8cf1-94b79bed9027",
+  "devnetRpcUrl": "https://devnet.helius-rpc.com/?api-key=545e35bf-b0a5-4ffa-8cf1-94b79bed9027",
   "irysNetwork": "devnet"
 }

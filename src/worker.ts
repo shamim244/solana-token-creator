@@ -57,6 +57,7 @@ let inMemoryPlatformSettings = {
   revokeStandaloneFeeSol: 0.05,
   updateMetadataFeeSol: 0.05,
   burnTokenFeeSol: 0.0,
+  airdropFeeSol: 0.01,
   absorbNetworkRent: true,
   treasuryWalletAddress: "9poMxa1YY7mTpCpcPmdvcy86vGgBwbL1nmDLrxV8iziU",
   promoDiscountPercent: 0,

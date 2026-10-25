@@ -11,13 +11,15 @@ import { AuthorityRevokerCard } from "./authority-revoker-card";
 import { MetadataUpdaterCard } from "./metadata-updater-card";
 import { TokenBurnerCard } from "./token-burner-card";
 import { DexLauncherCard } from "./dex-launcher-card";
+import { AirdropMultiSenderCard } from "./airdrop-multi-sender-card";
 import { AirdropCard } from "./airdrop-card";
 import { TransferSolCard } from "./transfer-sol-card";
-import { ShieldCheck, Edit3, Flame, Droplets, Coins } from "lucide-react";
+import { ShieldCheck, Edit3, Flame, Droplets, Coins, Send } from "lucide-react";
 
 const subscribeToHydration = () => () => {};
 
-type UtilityTab = "revoker" | "metadata" | "burner" | "launchpad" | "faucet";
+type UtilityTab =
+  "airdrop" | "revoker" | "metadata" | "burner" | "launchpad" | "faucet";
 
 export function ActionsPanel() {
   const client = useAppClient();
@@ -30,7 +32,7 @@ export function ActionsPanel() {
   );
   const { cluster } = useCluster();
 
-  const [activeTab, setActiveTab] = useState<UtilityTab>("revoker");
+  const [activeTab, setActiveTab] = useState<UtilityTab>("airdrop");
 
   if (!isHydrated || !isWalletReady) {
     return (
@@ -72,6 +74,19 @@ export function ActionsPanel() {
 
       {/* Sub-Navigation Tabs */}
       <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-border/70 bg-card p-1.5 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setActiveTab("airdrop")}
+          className={`flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+            activeTab === "airdrop"
+              ? "bg-amber-500 text-slate-950 shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+          }`}
+        >
+          <Send className="h-4 w-4" />
+          Multi-Sender / Airdrop
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("revoker")}
@@ -140,6 +155,7 @@ export function ActionsPanel() {
 
       {/* Tab Panels */}
       <div>
+        {activeTab === "airdrop" && <AirdropMultiSenderCard />}
         {activeTab === "revoker" && <AuthorityRevokerCard />}
         {activeTab === "metadata" && <MetadataUpdaterCard />}
         {activeTab === "burner" && <TokenBurnerCard />}
