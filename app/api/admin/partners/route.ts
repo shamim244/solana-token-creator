@@ -4,14 +4,19 @@ import {
   approvePartner,
   rejectPartner,
   completePayout,
+  updatePartnerTerms,
 } from "../../../lib/partner-service";
 
 export const dynamic = "force-dynamic";
 
 function verifyAdmin(req: Request): boolean {
   const authHeader = req.headers.get("Authorization");
-  const expectedPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const xAdminKey =
+    req.headers.get("x-admin-key") || req.headers.get("x-admin-password");
+  const expectedPassword =
+    process.env.ADMIN_PASSWORD || process.env.ADMIN_SECRET_KEY || "admin123";
 
+  if (xAdminKey && xAdminKey.trim() === expectedPassword) return true;
   if (!authHeader) return false;
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   return token === expectedPassword;
@@ -67,6 +72,22 @@ export async function POST(req: Request) {
         txSignature: body.txSignature,
       });
       return NextResponse.json({ success: true, payout });
+    }
+
+    if (action === "update_terms") {
+      const updated = await updatePartnerTerms({
+        partnerId: body.partnerId,
+        tier: body.tier,
+        customCommissionPercent:
+          body.customCommissionPercent !== undefined
+            ? parseFloat(body.customCommissionPercent)
+            : undefined,
+        audienceDiscountPercent:
+          body.audienceDiscountPercent !== undefined
+            ? parseFloat(body.audienceDiscountPercent)
+            : undefined,
+      });
+      return NextResponse.json({ success: true, partner: updated });
     }
 
     return NextResponse.json(

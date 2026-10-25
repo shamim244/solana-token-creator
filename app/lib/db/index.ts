@@ -118,6 +118,9 @@ export async function ensureDbInitialized(): Promise<void> {
     await clientInstance.execute(`
       CREATE INDEX IF NOT EXISTS partner_status_idx ON partners(status);
     `);
+    await clientInstance.execute(`
+      CREATE INDEX IF NOT EXISTS partner_tier_idx ON partners(tier);
+    `);
 
     // Migration guard: ensure tier column exists in existing SQLite databases
     try {

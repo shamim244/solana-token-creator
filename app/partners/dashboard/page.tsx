@@ -88,8 +88,6 @@ export default function PartnerDashboardPage() {
     };
   }, [userWallet, loadPartnerData]);
 
-  const [generatingReferrer, setGeneratingReferrer] = useState(false);
-
   const handleCopyCode = () => {
     if (!partner) return;
     navigator.clipboard.writeText(partner.slug.toUpperCase());
@@ -107,34 +105,6 @@ export default function PartnerDashboardPage() {
     toast.success("Copied shareable link to clipboard!", {
       description: fullUrl,
     });
-  };
-
-  const handleGenerateReferrer = async () => {
-    if (!userWallet) return;
-    setGeneratingReferrer(true);
-    const toastId = toast.loading("Generating your community referral code...");
-    try {
-      const res = await fetch(
-        `/api/partners/lookup?code=${encodeURIComponent(userWallet)}`
-      );
-      const data = await res.json();
-      if (data.success && data.partner) {
-        toast.success(
-          `Referral code "${data.partner.slug.toUpperCase()}" generated!`,
-          { id: toastId }
-        );
-        await loadPartnerData();
-      } else {
-        throw new Error(data.error || "Failed to generate referral code");
-      }
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create referral code",
-        { id: toastId }
-      );
-    } finally {
-      setGeneratingReferrer(false);
-    }
   };
 
   const handleClaim = async () => {
@@ -233,36 +203,25 @@ export default function PartnerDashboardPage() {
           <Tag className="h-10 w-10 text-amber-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-foreground">
-              Start Earning as a Referrer or Partner
+              No VIP Partner Account Found
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
               The connected wallet (
               <span className="font-mono text-foreground font-semibold">
                 {userWallet.slice(0, 4)}...{userWallet.slice(-4)}
               </span>
-              ) does not have an active promo code yet.
+              ) does not have an approved VIP Partner account yet.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Button
-              type="button"
-              onClick={handleGenerateReferrer}
-              disabled={generatingReferrer}
-              className="w-full sm:w-auto text-xs font-semibold cursor-pointer h-9 px-4"
+            <Link
+              href="/referral"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 text-xs font-bold transition-colors cursor-pointer"
             >
-              {generatingReferrer ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  Generating Code...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5 text-amber-300" />
-                  Instant Referral Code
-                </>
-              )}
-            </Button>
+              <Sparkles className="h-3.5 w-3.5" />
+              Open Community Referral Hub
+            </Link>
 
             <Link
               href="/partners"
@@ -290,6 +249,36 @@ export default function PartnerDashboardPage() {
       ) : (
         /* Approved Partner / Referrer Workspace */
         <div className="space-y-8">
+          {partner?.tier === "referrer" && (
+            <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Community Referral Account Active
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  You are viewing the dashboard with a Community Referral code.
+                  Visit the dedicated Referral Hub for optimized sharing tools
+                  and referral statistics.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/referral"
+                  className="rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-3 py-1.5 text-xs inline-flex items-center gap-1 transition-colors"
+                >
+                  Open Referral Hub <ArrowRight className="h-3 w-3" />
+                </Link>
+                <Link
+                  href="/partners"
+                  className="rounded-lg border border-border/80 bg-background/60 hover:bg-background text-foreground px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                >
+                  Apply for VIP Partner
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Partner Share Box */}
           <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-emerald-500/10 p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

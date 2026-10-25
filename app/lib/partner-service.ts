@@ -203,7 +203,13 @@ export function getPartnerRates(
   tier: "partner" | "referrer";
 } {
   const tier: "partner" | "referrer" =
-    partner.tier || (partner.status === "approved" ? "partner" : "referrer");
+    partner.tier === "referrer"
+      ? "referrer"
+      : partner.tier === "partner"
+        ? "partner"
+        : partner.status === "approved"
+          ? "partner"
+          : "referrer";
 
   // 1. Commission Resolution
   let commissionPercent: number;
@@ -292,6 +298,7 @@ export async function savePartnersStore(
   store: PartnersDataStore
 ): Promise<void> {
   await ensureDbInitialized();
+  hasSeededLegacy = true;
 
   // Clear existing rows
   await db.delete(partnerConversionsTable);
@@ -354,28 +361,80 @@ export async function savePartnersStore(
 }
 
 /**
- * Finds partner by slug, payout wallet, or ID with indexed O(1) query.
+ * Finds partner or referrer by slug, payout wallet, or ID with indexed O(1) query.
+ * Correctly preserves case for Base58 Solana wallet addresses while matching slugs case-insensitively.
  */
 export async function findPartner(
   slugOrWallet: string
 ): Promise<PartnerRecord | undefined> {
   await seedFromLegacyFileIfEmpty();
 
-  const query = slugOrWallet.toLowerCase().trim();
+  const cleanInput = slugOrWallet.trim();
+  const lowerInput = cleanInput.toLowerCase();
+
   const rows = await db
     .select()
     .from(partnersTable)
     .where(
       or(
-        eq(partnersTable.slug, query),
-        eq(partnersTable.payoutWallet, query),
-        eq(partnersTable.id, query)
+        eq(partnersTable.slug, lowerInput),
+        eq(partnersTable.payoutWallet, cleanInput),
+        eq(partnersTable.payoutWallet, lowerInput),
+        eq(partnersTable.id, cleanInput)
       )
     )
     .limit(1);
 
   if (rows.length === 0) return undefined;
   return mapPartnerRow(rows[0]);
+}
+
+/**
+ * Finds specifically a VIP Partner (tier === 'partner').
+ */
+export async function findVipPartner(
+  slugOrWallet: string
+): Promise<PartnerRecord | undefined> {
+  const partner = await findPartner(slugOrWallet);
+  if (!partner || partner.tier !== "partner") return undefined;
+  return partner;
+}
+
+/**
+ * Finds specifically a Community Referrer (tier === 'referrer').
+ */
+export async function findReferrer(
+  slugOrWallet: string
+): Promise<PartnerRecord | undefined> {
+  const partner = await findPartner(slugOrWallet);
+  if (!partner || partner.tier !== "referrer") return undefined;
+  return partner;
+}
+
+/**
+ * Retrieves all VIP Partner accounts.
+ */
+export async function getVipPartners(): Promise<PartnerRecord[]> {
+  await seedFromLegacyFileIfEmpty();
+  const rows = await db
+    .select()
+    .from(partnersTable)
+    .where(eq(partnersTable.tier, "partner"))
+    .orderBy(desc(partnersTable.createdAt));
+  return rows.map(mapPartnerRow);
+}
+
+/**
+ * Retrieves all Community Referrer accounts.
+ */
+export async function getCommunityReferrers(): Promise<PartnerRecord[]> {
+  await seedFromLegacyFileIfEmpty();
+  const rows = await db
+    .select()
+    .from(partnersTable)
+    .where(eq(partnersTable.tier, "referrer"))
+    .orderBy(desc(partnersTable.createdAt));
+  return rows.map(mapPartnerRow);
 }
 
 /**

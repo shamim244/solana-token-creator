@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -101,7 +101,7 @@ export default function AdminPage() {
   );
   const [isPartnersLoading, setIsPartnersLoading] = useState(false);
   const [activePartnersTab, setActivePartnersTab] = useState<
-    "pending" | "approved" | "payouts" | "conversions"
+    "pending" | "approved" | "referrers" | "payouts" | "conversions"
   >("pending");
   const [partnerRates, setPartnerRates] = useState<
     Record<string, { commission: string; discount: string }>
@@ -113,27 +113,30 @@ export default function AdminPage() {
     null
   );
 
-  const fetchPartnersStore = async (token?: string) => {
-    const adminToken =
-      token || sessionStorage.getItem("admin_auth_token") || password;
-    if (!adminToken) return;
-    setIsPartnersLoading(true);
-    try {
-      const res = await fetch("/api/admin/partners", {
-        headers: { Authorization: `Bearer ${adminToken}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.store) {
-          setPartnersStore(data.store);
+  const fetchPartnersStore = useCallback(
+    async (token?: string) => {
+      const adminToken =
+        token || sessionStorage.getItem("admin_auth_token") || password;
+      if (!adminToken) return;
+      setIsPartnersLoading(true);
+      try {
+        const res = await fetch("/api/admin/partners", {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.store) {
+            setPartnersStore(data.store);
+          }
         }
+      } catch (err) {
+        console.warn("Failed to load partner records:", err);
+      } finally {
+        setIsPartnersLoading(false);
       }
-    } catch (err) {
-      console.warn("Failed to load partner records:", err);
-    } finally {
-      setIsPartnersLoading(false);
-    }
-  };
+    },
+    [password]
+  );
 
   const handleApprovePartner = async (partnerId: string) => {
     const adminToken = sessionStorage.getItem("admin_auth_token") || password;
@@ -238,30 +241,33 @@ export default function AdminPage() {
     }
   };
 
-  const loadSettings = async (token: string) => {
-    const [settingsRes, diagRes] = await Promise.all([
-      fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-      fetch("/api/upload-metadata/status"),
-      fetchPartnersStore(token),
-    ]);
+  const loadSettings = useCallback(
+    async (token: string) => {
+      const [settingsRes, diagRes] = await Promise.all([
+        fetch("/api/admin/settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/upload-metadata/status"),
+        fetchPartnersStore(token),
+      ]);
 
-    if (!settingsRes.ok) {
-      throw new Error("Authentication failed");
-    }
+      if (!settingsRes.ok) {
+        throw new Error("Authentication failed");
+      }
 
-    const settingsData = await settingsRes.json();
-    if (settingsData.success && settingsData.settings) {
-      setSettings(settingsData.settings);
-      setIsAuthenticated(true);
-    }
+      const settingsData = await settingsRes.json();
+      if (settingsData.success && settingsData.settings) {
+        setSettings(settingsData.settings);
+        setIsAuthenticated(true);
+      }
 
-    if (diagRes.ok) {
-      const diagData = await diagRes.json();
-      setDiagnostics(diagData);
-    }
-  };
+      if (diagRes.ok) {
+        const diagData = await diagRes.json();
+        setDiagnostics(diagData);
+      }
+    },
+    [fetchPartnersStore]
+  );
 
   // Check existing session
   useEffect(() => {
@@ -279,7 +285,7 @@ export default function AdminPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [loadSettings]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1465,18 +1471,34 @@ export default function AdminPage() {
           {activeSection === "partners" && (
             <div className="space-y-6 max-w-5xl">
               {/* Partner Overview & KPI Header */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Active VIP Partners
                   </span>
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold font-mono text-foreground">
+                    <span className="text-xl font-bold font-mono text-amber-400">
                       {partnersStore?.partners.filter(
-                        (p) => p.status === "approved"
+                        (p) =>
+                          p.status === "approved" &&
+                          (p.tier === "partner" || !p.tier)
                       ).length || 0}
                     </span>
-                    <Users className="h-4 w-4 text-amber-400" />
+                    <Sparkles className="h-4 w-4 text-amber-400" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Community Referrers
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold font-mono text-sky-400">
+                      {partnersStore?.partners.filter(
+                        (p) => p.tier === "referrer"
+                      ).length || 0}
+                    </span>
+                    <Users className="h-4 w-4 text-sky-400" />
                   </div>
                 </div>
 
@@ -1487,9 +1509,10 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold font-mono text-emerald-400">
                       {(
-                        partnersStore?.partners
-                          .filter((p) => p.status === "approved")
-                          .reduce((s, p) => s + (p.totalVolumeSol || 0), 0) || 0
+                        partnersStore?.partners.reduce(
+                          (s, p) => s + (p.totalVolumeSol || 0),
+                          0
+                        ) || 0
                       ).toFixed(2)}{" "}
                       <span className="text-xs">SOL</span>
                     </span>
@@ -1499,17 +1522,15 @@ export default function AdminPage() {
 
                 <div className="rounded-xl border border-border/80 bg-card/60 p-4 space-y-1">
                   <span className="text-[11px] font-medium text-muted-foreground">
-                    Unclaimed Commissions
+                    Unclaimed SOL
                   </span>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold font-mono text-amber-400">
                       {(
-                        partnersStore?.partners
-                          .filter((p) => p.status === "approved")
-                          .reduce(
-                            (s, p) => s + (p.unclaimedBalanceSol || 0),
-                            0
-                          ) || 0
+                        partnersStore?.partners.reduce(
+                          (s, p) => s + (p.unclaimedBalanceSol || 0),
+                          0
+                        ) || 0
                       ).toFixed(2)}{" "}
                       <span className="text-xs">SOL</span>
                     </span>
@@ -1543,14 +1564,18 @@ export default function AdminPage() {
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                     }`}
                   >
-                    <span>Applications</span>
+                    <span>VIP Applications</span>
                     {(partnersStore?.partners.filter(
-                      (p) => p.status === "pending"
+                      (p) =>
+                        p.status === "pending" &&
+                        (p.tier === "partner" || !p.tier)
                     ).length || 0) > 0 && (
                       <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-bold text-slate-950">
                         {
                           partnersStore?.partners.filter(
-                            (p) => p.status === "pending"
+                            (p) =>
+                              p.status === "pending" &&
+                              (p.tier === "partner" || !p.tier)
                           ).length
                         }
                       </span>
@@ -1565,11 +1590,31 @@ export default function AdminPage() {
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                     }`}
                   >
-                    <span>Active Partners</span>
+                    <span>Active VIP Partners</span>
                     <span className="text-[10px] text-muted-foreground font-mono">
                       (
                       {partnersStore?.partners.filter(
-                        (p) => p.status === "approved"
+                        (p) =>
+                          p.status === "approved" &&
+                          (p.tier === "partner" || !p.tier)
+                      ).length || 0}
+                      )
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePartnersTab("referrers")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activePartnersTab === "referrers"
+                        ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span>Community Referrers</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      (
+                      {partnersStore?.partners.filter(
+                        (p) => p.tier === "referrer"
                       ).length || 0}
                       )
                     </span>
@@ -1614,11 +1659,18 @@ export default function AdminPage() {
 
                 <div className="flex items-center gap-2">
                   <Link
+                    href="/referral"
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border/60 hover:bg-secondary/40 transition-colors"
+                  >
+                    Referral Hub <ExternalLink className="h-3 w-3" />
+                  </Link>
+                  <Link
                     href="/partners"
                     target="_blank"
                     className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md border border-border/60 hover:bg-secondary/40 transition-colors"
                   >
-                    Public Apply Page <ExternalLink className="h-3 w-3" />
+                    VIP Apply Page <ExternalLink className="h-3 w-3" />
                   </Link>
                   <Button
                     variant="outline"
@@ -1637,15 +1689,18 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Sub-Tab 1: Pending Applications */}
+              {/* Sub-Tab 1: VIP Applications */}
               {activePartnersTab === "pending" && (
                 <div className="space-y-4">
-                  {partnersStore?.partners.filter((p) => p.status === "pending")
-                    .length === 0 ? (
+                  {partnersStore?.partners.filter(
+                    (p) =>
+                      p.status === "pending" &&
+                      (p.tier === "partner" || !p.tier)
+                  ).length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
                       <UserCheck className="h-8 w-8 text-muted-foreground/60 mx-auto" />
                       <h3 className="text-xs font-semibold text-foreground">
-                        No Pending Partner Applications
+                        No Pending VIP Applications
                       </h3>
                       <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
                         When creators or influencers submit applications via the
@@ -1655,7 +1710,11 @@ export default function AdminPage() {
                     </div>
                   ) : (
                     partnersStore?.partners
-                      .filter((p) => p.status === "pending")
+                      .filter(
+                        (p) =>
+                          p.status === "pending" &&
+                          (p.tier === "partner" || !p.tier)
+                      )
                       .map((partner) => (
                         <div
                           key={partner.id}
@@ -1846,16 +1905,18 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Sub-Tab 2: Active & Approved Partners */}
+              {/* Sub-Tab 2: Active VIP Partners */}
               {activePartnersTab === "approved" && (
                 <div className="space-y-4">
                   {partnersStore?.partners.filter(
-                    (p) => p.status === "approved"
+                    (p) =>
+                      p.status === "approved" &&
+                      (p.tier === "partner" || !p.tier)
                   ).length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
                       <Users className="h-8 w-8 text-muted-foreground/60 mx-auto" />
                       <h3 className="text-xs font-semibold text-foreground">
-                        No Active Partners Yet
+                        No Active VIP Partners Yet
                       </h3>
                       <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
                         Once you approve incoming partner applications, their
@@ -1882,7 +1943,11 @@ export default function AdminPage() {
                           </thead>
                           <tbody className="divide-y divide-border/40 font-mono text-[11px]">
                             {partnersStore?.partners
-                              .filter((p) => p.status === "approved")
+                              .filter(
+                                (p) =>
+                                  p.status === "approved" &&
+                                  (p.tier === "partner" || !p.tier)
+                              )
                               .map((p) => (
                                 <tr
                                   key={p.id}
@@ -1899,14 +1964,14 @@ export default function AdminPage() {
                                   <td className="py-3 px-3">
                                     <div className="text-amber-400 font-bold">
                                       {p.customCommissionPercent ??
-                                        settings.referralFeeSharePercent ??
-                                        20}
+                                        settings.partnerFeeSharePercent ??
+                                        30}
                                       % commission
                                     </div>
                                     <div className="text-[10px] text-emerald-400">
                                       {p.audienceDiscountPercent
                                         ? `${p.audienceDiscountPercent}% user discount`
-                                        : "0% user discount"}
+                                        : `${settings.partnerDiscountPercent || 10}% user discount`}
                                     </div>
                                   </td>
                                   <td className="py-3 px-3">
@@ -1949,7 +2014,142 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Sub-Tab 3: Payout Claims */}
+              {/* Sub-Tab 3: Community Referrers */}
+              {activePartnersTab === "referrers" && (
+                <div className="space-y-4">
+                  {partnersStore?.partners.filter((p) => p.tier === "referrer")
+                    .length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/80 bg-card/30 p-8 text-center space-y-2">
+                      <Users className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                      <h3 className="text-xs font-semibold text-foreground">
+                        No Community Referrers Yet
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                        When users visit the /referral page and connect their
+                        Solana wallet, their instant 8-character referral code
+                        and tracking stats will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border/80 bg-card/60 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="border-b border-border/60 text-muted-foreground text-[10px] uppercase tracking-wider bg-background/50">
+                              <th className="py-2.5 px-3">Referrer & Code</th>
+                              <th className="py-2.5 px-3">Solana Wallet</th>
+                              <th className="py-2.5 px-3">Rates</th>
+                              <th className="py-2.5 px-3">Traffic</th>
+                              <th className="py-2.5 px-3">Conversions</th>
+                              <th className="py-2.5 px-3">Volume Driven</th>
+                              <th className="py-2.5 px-3">Unclaimed SOL</th>
+                              <th className="py-2.5 px-3 text-right">
+                                Test Link
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40 font-mono text-[11px]">
+                            {partnersStore?.partners
+                              .filter((p) => p.tier === "referrer")
+                              .map((p) => (
+                                <tr
+                                  key={p.id}
+                                  className="hover:bg-secondary/30 transition-colors"
+                                >
+                                  <td className="py-3 px-3 font-sans">
+                                    <div className="font-bold text-foreground flex items-center gap-1.5">
+                                      {p.name}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[9px] py-0 text-sky-400 border-sky-500/30"
+                                      >
+                                        Referrer
+                                      </Badge>
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground font-mono">
+                                      code:{" "}
+                                      <span className="text-amber-400 font-bold">
+                                        {p.slug.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3 text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <span>
+                                        {p.payoutWallet.slice(0, 4)}...
+                                        {p.payoutWallet.slice(-4)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(
+                                            p.payoutWallet
+                                          );
+                                          toast.success(
+                                            "Wallet address copied!"
+                                          );
+                                        }}
+                                        className="text-muted-foreground hover:text-foreground p-0.5"
+                                        title="Copy address"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <div className="text-amber-400 font-bold">
+                                      {p.customCommissionPercent ??
+                                        settings.referralFeeSharePercent ??
+                                        15}
+                                      % share
+                                    </div>
+                                    <div className="text-[10px] text-emerald-400">
+                                      {p.audienceDiscountPercent ??
+                                        settings.referralDiscountPercent ??
+                                        5}
+                                      % discount
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className="text-foreground font-semibold">
+                                      {p.clicks}
+                                    </span>{" "}
+                                    clicks &bull;{" "}
+                                    <span className="text-sky-400">
+                                      {p.walletsConnected}
+                                    </span>{" "}
+                                    wallets
+                                  </td>
+                                  <td className="py-3 px-3 text-emerald-400 font-bold">
+                                    {p.conversionsCount} sales
+                                  </td>
+                                  <td className="py-3 px-3 font-semibold text-foreground">
+                                    {p.totalVolumeSol.toFixed(3)} SOL
+                                  </td>
+                                  <td className="py-3 px-3 font-bold text-amber-400">
+                                    {p.unclaimedBalanceSol.toFixed(3)} SOL
+                                  </td>
+                                  <td className="py-3 px-3 text-right font-sans">
+                                    <a
+                                      href={`/?ref=${p.slug}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-amber-400 hover:underline inline-flex items-center gap-1 text-xs"
+                                    >
+                                      Link <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 4: Payout Claims */}
               {activePartnersTab === "payouts" && (
                 <div className="space-y-4">
                   {partnersStore?.payouts.length === 0 ? (

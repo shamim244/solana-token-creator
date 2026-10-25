@@ -115,11 +115,19 @@ export function AppFooter() {
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li>
                 <Link
-                  href="/partners"
+                  href="/referral"
                   className="hover:text-amber-400 font-medium text-amber-400/90 transition-colors flex items-center gap-1.5"
                 >
                   <Sparkles className="h-3 w-3 text-amber-400" />
-                  Partner & Affiliate Program
+                  Refer a Friend (15% SOL)
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/partners"
+                  className="hover:text-foreground transition-colors"
+                >
+                  VIP Partner Program
                 </Link>
               </li>
               <li>

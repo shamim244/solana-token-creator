@@ -215,7 +215,7 @@ export async function savePlatformSettingsAsync(
     }
     fs.writeFileSync(
       CONFIG_FILE_PATH,
-      JSON.stringify(updated, null, 2),
+      JSON.stringify(updated, null, 2) + "\n",
       "utf-8"
     );
   } catch {

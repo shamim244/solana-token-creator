@@ -28,6 +28,11 @@ describe("Platform Settings (Drizzle SQLite Engine)", () => {
     const reloaded = await getPlatformSettingsAsync();
     expect(reloaded.platformTitle).toBe(testTitle);
     expect(reloaded.mainnetBaseFeeSol).toBe(0.25);
+
+    // Clean up and restore title
+    await savePlatformSettingsAsync({
+      platformTitle: "Solana Token Studio",
+    });
   });
 
   it("supports synchronous fallback access without throwing", () => {

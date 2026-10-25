@@ -51,6 +51,7 @@ export const partnersTable = sqliteTable(
     index("partner_slug_idx").on(table.slug),
     index("partner_wallet_idx").on(table.payoutWallet),
     index("partner_status_idx").on(table.status),
+    index("partner_tier_idx").on(table.tier),
   ]
 );
 

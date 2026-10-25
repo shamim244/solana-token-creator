@@ -158,8 +158,16 @@ The system operates on a dual-tier "give-to-get" model ensuring **both promoters
 - **Interactive Promo Input**: The Token Creation Review step (`step-review.tsx`) provides an interactive code input box so users who didn't click a link can manually apply codes (e.g. `BONK`) to unlock fee discounts.
 
 ### 3.4. Payout Settlement
-- Partners submit self-serve withdrawal requests when their unclaimed balance exceeds the minimum threshold (default: 0.05 SOL).
+- Partners and referrers submit self-serve withdrawal requests when their unclaimed balance exceeds the minimum threshold (default: 0.05 SOL).
 - Admins review pending claims in `/admin`, execute the SOL transfer, paste the transaction signature, and mark the payout as `completed`.
+
+### 3.5. Community Referral Hub (`/referral` & `/api/referral`)
+To prevent conflation between VIP KOL partnerships and casual peer-to-peer sharing, the platform provides a dedicated, high-converting Community Referral Hub:
+- **Permissionless**: Any connected Solana wallet automatically retrieves or creates a clean 8-character referral code (`tier: "referrer"`).
+- **Self-Serve Dashboard**: Displays real-time clicks, wallets connected, paid conversions, volume driven, lifetime earnings, and unclaimed balance.
+- **1-Click Actions**: Quick copy buttons for referral code, shareable link (`?ref=...`), and direct social share triggers for X / Twitter and Telegram.
+- **Direct Claims**: Users can submit withdrawal claims directly to their connected wallet once reaching 0.05 SOL unclaimed commission balance.
+- **Upgrade Pathway**: High-volume referrers with >1,000 members are prompted to apply for the VIP Partner Program for custom vanity codes and higher commission brackets.
 
 ---
 
@@ -172,7 +180,7 @@ The system operates on a dual-tier "give-to-get" model ensuring **both promoters
 - [`app/lib/platform-settings.ts`](file:///p:/Solana/Solana-Token-Creation/app/lib/platform-settings.ts)
 
 ### 4.1. Access Security
-- Admin endpoints require authentication via the `x-admin-key` header or query parameter, matched against `ADMIN_SECRET_KEY` in environment variables.
+- Admin endpoints require authentication via `Authorization: Bearer <password>`, `x-admin-key`, or `x-admin-password`, matched against `ADMIN_PASSWORD` or `ADMIN_SECRET_KEY` in environment variables (fallback: `admin123`).
 
 ### 4.2. Capabilities
 1. **Fee Management**:
@@ -190,12 +198,12 @@ The system operates on a dual-tier "give-to-get" model ensuring **both promoters
    - Mainnet RPC endpoint override
    - Devnet RPC endpoint override
    - Maintenance mode toggle
-4. **Partner Administration**:
-   - Review pending partner applications
-   - Approve / Reject partner applications
-   - Set custom commission % and audience discount %
-   - Inspect full conversion audit trail per partner
-   - Settle payout requests with on-chain transaction hash verification
+4. **Partner & Referral Administration**:
+   - **VIP Applications Tab**: Review pending creator applications with channel URLs and audience reach; 1-click approval with negotiated commission % and discount %.
+   - **Active VIP Partners Tab**: Manage verified creators, monitor live traffic, adjust custom terms, and access branded test links.
+   - **Community Referrers Tab**: Inspect all auto-generated community referrer codes, wallet addresses, clicks, and conversions without cluttering VIP creator queues.
+   - **Payout Claims Tab**: Settle pending commission withdrawals for both VIP partners and community referrers with on-chain transaction hash verification.
+   - **Conversions Ledger Tab**: Inspect full conversion audit trail per partner and referrer.
 
 ---
 
@@ -204,10 +212,11 @@ The system operates on a dual-tier "give-to-get" model ensuring **both promoters
 | Route | Method | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
 | `/api/settings` | `GET` | Fetches public platform settings (fees, discounts, banner) | No |
-| `/api/admin/settings` | `GET`, `POST` | Fetches/updates sensitive platform settings | Yes (`x-admin-key`) |
-| `/api/admin/partners` | `GET`, `POST` | Manages partners, approvals, splits, payouts | Yes (`x-admin-key`) |
-| `/api/partners/apply` | `POST` | Submits partner application | No |
-| `/api/partners/lookup` | `GET` | Looks up partner by slug or wallet address | No |
+| `/api/admin/settings` | `GET`, `POST` | Fetches/updates sensitive platform settings | Yes (`x-admin-key` / `Authorization`) |
+| `/api/admin/partners` | `GET`, `POST` | Manages partners, approvals, splits, payouts | Yes (`x-admin-key` / `Authorization`) |
+| `/api/referral` | `GET`, `POST` | Self-serve community referrer stats, link generation, and claims | No |
+| `/api/partners/apply` | `POST` | Submits VIP partner application | No |
+| `/api/partners/lookup` | `GET` | Looks up partner or referrer by slug or wallet address | No |
 | `/api/partners/click` | `POST` | Records link click for partner attribution | No |
 | `/api/partners/connect` | `POST` | Records wallet connection under partner referral | No |
 | `/api/partners/convert` | `POST` | Records paid on-chain action and credits commission | No |

@@ -9,8 +9,12 @@ export const dynamic = "force-dynamic";
 
 function verifyAdmin(req: Request): boolean {
   const authHeader = req.headers.get("Authorization");
-  const expectedPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const xAdminKey =
+    req.headers.get("x-admin-key") || req.headers.get("x-admin-password");
+  const expectedPassword =
+    process.env.ADMIN_PASSWORD || process.env.ADMIN_SECRET_KEY || "admin123";
 
+  if (xAdminKey && xAdminKey.trim() === expectedPassword) return true;
   if (!authHeader) return false;
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   return token === expectedPassword;
