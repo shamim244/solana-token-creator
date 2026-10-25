@@ -35,6 +35,7 @@ import {
 import { getCreateMetadataAccountV3InstructionDataSerializer } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey } from "@metaplex-foundation/umi";
 import type { AppClient, ClusterMoniker } from "./solana-client";
+import { parseTransactionError } from "./errors";
 
 export const METAPLEX_PROGRAM_ID = address(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
@@ -341,9 +342,16 @@ export async function createAndDeployToken(
     rpcSubscriptions: client.rpcSubscriptions,
   });
 
-  await sendAndConfirm(signedTx, {
-    commitment: "confirmed",
-  });
+  try {
+    await sendAndConfirm(signedTx, {
+      commitment: "confirmed",
+    });
+  } catch (err: unknown) {
+    const parsed = parseTransactionError(err);
+    const friendlyError = new Error(parsed);
+    (friendlyError as { cause?: unknown }).cause = err;
+    throw friendlyError;
+  }
 
   return {
     mintAddress: mintKeypair.address,

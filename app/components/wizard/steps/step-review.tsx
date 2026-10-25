@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { address, lamports } from "@solana/kit";
+import { useConnectedWallet } from "@solana/kit-plugin-wallet/react";
+import { useAppClient } from "../../../lib/client-provider";
+import { useBalance } from "../../../lib/hooks/use-balance";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Input } from "../../ui/input";
@@ -12,6 +16,8 @@ import {
   Loader2,
   Sparkles,
   Tag,
+  AlertTriangle,
+  Coins,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePlatformSettings } from "../../../lib/hooks/use-platform-settings";
@@ -115,6 +121,43 @@ export function StepReview({
 
   const displayTotal =
     totalWalletOutflow > 0 ? `${totalWalletOutflow.toFixed(3)} SOL` : "Free";
+
+  const client = useAppClient();
+  const connected = useConnectedWallet(client);
+  const userAddress = connected?.account.address
+    ? address(connected.account.address)
+    : undefined;
+  const { lamports: balanceLamports } = useBalance(userAddress);
+  const userBalanceSol =
+    balanceLamports != null ? Number(balanceLamports) / 1e9 : null;
+
+  const minRequiredSol = totalWalletOutflow + 0.001;
+  const isInsufficient =
+    userBalanceSol !== null && userBalanceSol < minRequiredSol;
+  const missingSol = isInsufficient
+    ? Math.max(0, minRequiredSol - userBalanceSol)
+    : 0;
+
+  const [isAirdropping, setIsAirdropping] = useState(false);
+  const handleAirdrop = async () => {
+    if (!connected) return;
+    setIsAirdropping(true);
+    const toastId = toast.loading("Requesting 1 SOL from Devnet faucet...");
+    try {
+      await client.airdrop(
+        address(connected.account.address),
+        lamports(1_000_000_000n)
+      );
+      toast.success("Airdropped 1 SOL from Devnet faucet!", { id: toastId });
+    } catch {
+      toast.error(
+        "Airdrop request failed. Public faucets are rate-limited — try faucet.solana.com.",
+        { id: toastId }
+      );
+    } finally {
+      setIsAirdropping(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -434,6 +477,72 @@ export function StepReview({
         </span>
       </div>
 
+      {/* Insufficient SOL Balance Warning Alert */}
+      {isInsufficient && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">
+                  Insufficient SOL Balance
+                </span>
+                <span className="font-mono text-xs text-rose-400 font-bold">
+                  {userBalanceSol?.toFixed(4)} SOL /{" "}
+                  {totalWalletOutflow.toFixed(3)} SOL
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Your wallet balance is{" "}
+                <strong className="text-foreground font-mono">
+                  {userBalanceSol?.toFixed(4)} SOL
+                </strong>
+                , but deploying this token requires{" "}
+                <strong className="text-foreground font-mono">
+                  {totalWalletOutflow.toFixed(3)} SOL
+                </strong>
+                . You need approximately{" "}
+                <strong className="text-rose-400 font-mono font-bold">
+                  +{missingSol.toFixed(4)} SOL
+                </strong>{" "}
+                more to cover the platform fee and Solana network rent.
+              </p>
+            </div>
+          </div>
+
+          {(cluster === "devnet" || cluster === "localnet") && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-rose-500/20 pt-2.5 text-xs">
+              <span className="text-[11px] text-muted-foreground">
+                Testing on {cluster === "devnet" ? "Devnet" : "Localnet"}? Get
+                free test SOL:
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAirdrop}
+                disabled={isAirdropping}
+                className="h-7 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+              >
+                {isAirdropping ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    Requesting Airdrop...
+                  </>
+                ) : (
+                  <>
+                    <Coins className="h-3 w-3 mr-1 text-amber-400" />
+                    Faucet: +1 Devnet SOL
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between border-t border-border/60 pt-4">
         <Button
           onClick={onBack}
@@ -446,14 +555,24 @@ export function StepReview({
         </Button>
         <Button
           onClick={onDeploy}
-          disabled={isDeploying}
-          variant="amber"
-          className="h-11 px-8 font-bold gap-2 text-sm shadow-md"
+          disabled={isDeploying || isInsufficient}
+          variant={isInsufficient ? "outline" : "amber"}
+          className={`h-11 px-8 font-bold gap-2 text-sm shadow-md cursor-pointer ${
+            isInsufficient
+              ? "opacity-60 cursor-not-allowed border-rose-500/40 text-rose-400 hover:bg-transparent"
+              : ""
+          }`}
         >
           {isDeploying ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Broadcasting Transaction...
+            </>
+          ) : isInsufficient ? (
+            <>
+              <AlertTriangle className="h-4 w-4 text-rose-400" />
+              Insufficient SOL ({userBalanceSol?.toFixed(3)} /{" "}
+              {totalWalletOutflow.toFixed(3)} SOL)
             </>
           ) : (
             <>

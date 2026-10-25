@@ -36,6 +36,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parseTransactionError } from "../../lib/errors";
 
 const SAMPLE_CSV = `# Solana Token Studio Airdrop Sample
 # Format: address,amount
@@ -266,15 +267,11 @@ export function AirdropMultiSenderCard() {
           }
         );
       } catch (err: unknown) {
-        console.error(`Batch ${b + 1} failed:`, err);
+        console.warn(`Batch ${b + 1} notice/error:`, err);
         failedIndices.push(b + 1);
         setFailedBatches([...failedIndices]);
-        toast.error(
-          err instanceof Error
-            ? `Batch ${b + 1} failed: ${err.message}`
-            : `Batch ${b + 1} transaction failed`,
-          { id: toastId }
-        );
+        const errorMsg = parseTransactionError(err);
+        toast.error(`Batch ${b + 1} failed: ${errorMsg}`, { id: toastId });
       }
     }
 

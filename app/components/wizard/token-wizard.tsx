@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { address } from "@solana/kit";
 import { useConnectedWallet } from "@solana/kit-plugin-wallet/react";
 import { useAppClient } from "../../lib/client-provider";
 import { useCluster } from "../cluster-context";
@@ -14,6 +15,7 @@ import { createAndDeployToken } from "../../lib/solana-token-creator";
 import { compressTokenImage } from "../../lib/image-compressor";
 import { usePlatformSettings } from "../../lib/hooks/use-platform-settings";
 import { usePartnerAttribution } from "../../lib/hooks/use-partner-attribution";
+import { parseTransactionError } from "../../lib/errors";
 import { toast } from "sonner";
 import { Check, ChevronRight } from "lucide-react";
 
@@ -87,9 +89,54 @@ export function TokenWizard() {
     }
 
     setIsDeploying(true);
-    const toastId = toast.loading("Preparing decentralized metadata...");
+    const toastId = toast.loading(
+      "Checking wallet balance & preparing metadata..."
+    );
 
     try {
+      // Pre-flight Balance Guard: Verify wallet has sufficient SOL before metadata upload
+      const baseFee =
+        cluster === "mainnet"
+          ? settings.mainnetBaseFeeSol
+          : settings.devnetBaseFeeSol;
+
+      let serviceFeeTotal = baseFee;
+      if (formData.revokeFreeze) serviceFeeTotal += settings.revokeFreezeFeeSol;
+      if (formData.revokeMint) serviceFeeTotal += settings.revokeMintFeeSol;
+      if (formData.revokeUpdate) serviceFeeTotal += settings.revokeUpdateFeeSol;
+
+      const discountMultiplier =
+        discountPercent > 0 ? Math.max(0, (100 - discountPercent) / 100) : 1;
+      const discountedServiceFee =
+        Math.round(serviceFeeTotal * discountMultiplier * 1000) / 1000;
+      const isAbsorbed = settings.absorbNetworkRent ?? true;
+      const totalRequiredSol = isAbsorbed
+        ? Math.max(discountedServiceFee, 0.009)
+        : discountedServiceFee + 0.009;
+
+      const minRequiredSol = totalRequiredSol + 0.001; // tiny cushion for network transaction fees
+
+      if (connected?.account.address) {
+        try {
+          const balRes = await client.rpc
+            .getBalance(address(connected.account.address), {
+              commitment: "confirmed",
+            })
+            .send();
+          const currentSol = Number(balRes.value) / 1e9;
+          if (currentSol < minRequiredSol) {
+            toast.error(
+              `Insufficient SOL balance: You have ${currentSol.toFixed(4)} SOL, but need ${totalRequiredSol.toFixed(3)} SOL to deploy.`,
+              { id: toastId }
+            );
+            setIsDeploying(false);
+            return;
+          }
+        } catch {
+          // If RPC query fails, proceed and allow on-chain simulation to validate
+        }
+      }
+
       let finalMetadataUri = formData.imageUrl;
 
       // 1. Upload decentralized metadata to Irys (Arweave)
@@ -165,11 +212,6 @@ export function TokenWizard() {
         id: toastId,
       });
 
-      const baseFee =
-        cluster === "mainnet"
-          ? settings.mainnetBaseFeeSol
-          : settings.devnetBaseFeeSol;
-
       const result = await createAndDeployToken(
         client,
         connected.signer,
@@ -216,11 +258,8 @@ export function TokenWizard() {
       });
       setStep(4); // Success step
     } catch (err: unknown) {
-      console.error("Token creation error:", err);
-      const errorMsg =
-        err instanceof Error
-          ? err.message
-          : "Failed to deploy token transaction.";
+      console.warn("Token creation notice/error:", err);
+      const errorMsg = parseTransactionError(err);
       toast.error(errorMsg, { id: toastId });
     } finally {
       setIsDeploying(false);

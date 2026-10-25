@@ -26,6 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parseTransactionError } from "../../lib/errors";
 
 export function MetadataUpdaterCard() {
   const client = useAppClient();
@@ -198,11 +199,9 @@ export function MetadataUpdaterCard() {
       );
       setTokenData(refreshed);
     } catch (err: unknown) {
-      console.error(err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update metadata",
-        { id: toastId }
-      );
+      console.warn("Metadata update notice/error:", err);
+      const errorMsg = parseTransactionError(err);
+      toast.error(errorMsg, { id: toastId });
     } finally {
       setUpdating(false);
     }

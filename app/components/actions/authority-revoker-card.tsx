@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parseTransactionError } from "../../lib/errors";
 
 export function AuthorityRevokerCard() {
   const client = useAppClient();
@@ -123,11 +124,9 @@ export function AuthorityRevokerCard() {
       );
       setTokenData(refreshed);
     } catch (err: unknown) {
-      console.error(err);
-      toast.error(
-        err instanceof Error ? err.message : `Failed to revoke ${label}`,
-        { id: toastId }
-      );
+      console.warn("Authority revoke notice/error:", err);
+      const errorMsg = parseTransactionError(err);
+      toast.error(errorMsg, { id: toastId });
     } finally {
       setRevokingType(null);
     }

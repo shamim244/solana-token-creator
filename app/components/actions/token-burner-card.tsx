@@ -24,6 +24,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parseTransactionError } from "../../lib/errors";
 
 export function TokenBurnerCard() {
   const client = useAppClient();
@@ -194,11 +195,9 @@ export function TokenBurnerCard() {
       setTokenData(refreshed);
       handleManualRefresh();
     } catch (err: unknown) {
-      console.error(err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to burn tokens",
-        { id: toastId }
-      );
+      console.warn("Token burn notice/error:", err);
+      const errorMsg = parseTransactionError(err);
+      toast.error(errorMsg, { id: toastId });
     } finally {
       setBurning(false);
     }

@@ -21,7 +21,7 @@ export function AirdropCard() {
       );
       toast.success("Airdropped 1 SOL");
     } catch (err) {
-      console.error(err);
+      console.warn("Airdrop faucet notice:", err);
       toast.error(
         "Airdrop failed. Public faucets are rate-limited — try faucet.solana.com."
       );
